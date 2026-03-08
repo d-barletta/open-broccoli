@@ -1,4 +1,5 @@
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
+const DEFAULT_MAX_TOKENS = 2048
 
 export async function fetchModels(apiKey) {
   const response = await fetch(`${OPENROUTER_BASE}/models`, {
@@ -17,7 +18,7 @@ export async function fetchModels(apiKey) {
   return data.data || []
 }
 
-export async function streamChatCompletion({ apiKey, model, messages, onChunk, onDone, onError }) {
+export async function streamChatCompletion({ apiKey, model, messages, onChunk, onDone, onError, maxTokens = DEFAULT_MAX_TOKENS }) {
   try {
     const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
       method: 'POST',
@@ -31,7 +32,7 @@ export async function streamChatCompletion({ apiKey, model, messages, onChunk, o
         model,
         messages,
         stream: true,
-        max_tokens: 2048,
+        max_tokens: maxTokens,
       }),
     })
 
