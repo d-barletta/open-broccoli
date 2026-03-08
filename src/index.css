@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 min-h-screen;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+@layer components {
+  .battle-panel-blue {
+    @apply bg-gradient-to-b from-blue-950/60 to-gray-900/80 border border-blue-500/30;
+  }
+
+  .battle-panel-red {
+    @apply bg-gradient-to-b from-red-950/60 to-gray-900/80 border border-red-500/30;
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(59, 130, 246, 0.05);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15), 0 0 40px rgba(239, 68, 68, 0.05);
+  }
+
+  .vs-glow {
+    text-shadow: 0 0 20px rgba(250, 204, 21, 0.8), 0 0 40px rgba(250, 204, 21, 0.4);
+  }
+
+  .typing-cursor::after {
+    content: '▋';
+    @apply animate-pulse text-gray-400;
+  }
+}
+
+@layer utilities {
+  .prose-battle {
+    @apply text-gray-200 text-sm leading-relaxed;
+  }
+
+  .prose-battle p {
+    @apply mb-3;
+  }
+
+  .prose-battle code {
+    @apply bg-gray-800 text-green-400 px-1.5 py-0.5 rounded text-xs font-mono;
+  }
+
+  .prose-battle pre {
+    @apply bg-gray-800/80 rounded-lg p-4 mb-3 overflow-x-auto;
+  }
+
+  .prose-battle pre code {
+    @apply bg-transparent p-0 text-sm;
+  }
+
+  .prose-battle ul {
+    @apply list-disc list-inside mb-3 space-y-1;
+  }
+
+  .prose-battle ol {
+    @apply list-decimal list-inside mb-3 space-y-1;
+  }
+
+  .prose-battle li {
+    @apply text-gray-300;
+  }
+
+  .prose-battle strong {
+    @apply text-white font-semibold;
+  }
+
+  .prose-battle h1, .prose-battle h2, .prose-battle h3 {
+    @apply font-semibold text-white mb-2 mt-4;
+  }
+
+  .prose-battle blockquote {
+    @apply border-l-2 border-gray-600 pl-4 italic text-gray-400 my-3;
+  }
+}
