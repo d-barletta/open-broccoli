@@ -277,7 +277,7 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
             <input
               type="number"
               value={maxIterations}
-              onChange={e => setMaxIterations(Math.min(MAX_ITERATIONS, Math.max(MIN_ITERATIONS, parseInt(e.target.value) || MIN_ITERATIONS)))}
+              onChange={e => setMaxIterations(Math.min(MAX_ITERATIONS, Math.max(MIN_ITERATIONS, parseInt(e.target.value, 10) || MIN_ITERATIONS)))}
               min={MIN_ITERATIONS}
               max={MAX_ITERATIONS}
               disabled={isRunning}
