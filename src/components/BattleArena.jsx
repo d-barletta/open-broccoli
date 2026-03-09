@@ -383,7 +383,7 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
         <div className="battle-panel-red glow-red rounded-xl overflow-hidden animate-slide-in-right">
           <div className="flex items-center justify-between px-4 py-3 border-b border-red-500/20 bg-red-950/30">
             <div className="flex items-center gap-2">
-              <span className="text-red-400 text-lg">��</span>
+              <span className="text-red-400 text-lg">🔍</span>
               <div>
                 <div className="text-red-300 font-bold text-sm">Critic</div>
                 <div className="text-red-500/70 text-xs truncate max-w-[160px]">{modelB}</div>
