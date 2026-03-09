@@ -30,4 +30,4 @@ npm run dev
 
 - React 18 + Vite 6 + Tailwind CSS 3
 - OpenRouter API (SSE streaming)
-- GitHub Actions → GitHub Pages 
+- GitHub Actions → GitHub Pages
