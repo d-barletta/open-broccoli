@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import ChatMessage from './ChatMessage'
 import ModelSelector from './ModelSelector'
 import { streamChatCompletion } from '../services/openrouter'
@@ -16,6 +16,9 @@ const PHASES = {
   CRITIC: 'critic',
   DONE: 'done',
 }
+
+const MIN_ITERATIONS = 2
+const MAX_ITERATIONS = 20
 
 function LoadingDots() {
   return (
@@ -50,12 +53,30 @@ function StatusBadge({ phase, side }) {
   )
 }
 
+function IterationDivider({ iteration, side }) {
+  const color = side === 'left' ? 'text-blue-500/50 bg-blue-500/20' : 'text-red-500/50 bg-red-500/20'
+  const lineColor = side === 'left' ? 'bg-blue-500/20' : 'bg-red-500/20'
+  return (
+    <div className="flex items-center gap-2 my-4">
+      <div className={`h-px flex-1 ${lineColor}`} />
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>
+        Iteration {iteration}
+      </span>
+      <div className={`h-px flex-1 ${lineColor}`} />
+    </div>
+  )
+}
+
 export default function BattleArena({ apiKey, models, modelsLoading }) {
   const [modelA, setModelA] = useState(DEFAULT_MODEL_A)
   const [modelB, setModelB] = useState(DEFAULT_MODEL_B)
   const [question, setQuestion] = useState('')
-  const [challengerContent, setChallengerContent] = useState('')
-  const [criticContent, setCriticContent] = useState('')
+  const [maxIterations, setMaxIterations] = useState(3)
+  const [currentIteration, setCurrentIteration] = useState(0)
+  const [challengerMessages, setChallengerMessages] = useState([])
+  const [criticMessages, setCriticMessages] = useState([])
+  const [streamingChallenger, setStreamingChallenger] = useState('')
+  const [streamingCritic, setStreamingCritic] = useState('')
   const [phase, setPhase] = useState(PHASES.IDLE)
   const [error, setError] = useState(null)
   const [rounds, setRounds] = useState(0)
@@ -74,65 +95,116 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
   async function startBattle() {
     if (!question.trim() || isRunning) return
     setError(null)
-    setChallengerContent('')
-    setCriticContent('')
+    setChallengerMessages([])
+    setCriticMessages([])
+    setStreamingChallenger('')
+    setStreamingCritic('')
+    setCurrentIteration(0)
     const currentQuestion = question.trim()
 
-    setPhase(PHASES.CHALLENGER)
-    let challengerFull = ''
+    const challengerHistory = []
+    const criticHistory = []
 
-    await streamChatCompletion({
-      apiKey,
-      model: modelA,
-      messages: [
+    for (let iter = 1; iter <= maxIterations; iter++) {
+      setCurrentIteration(iter)
+
+      // --- Model A turn ---
+      setPhase(PHASES.CHALLENGER)
+
+      const messagesForA = [
         { role: 'system', content: CHALLENGER_SYSTEM },
         { role: 'user', content: currentQuestion },
-      ],
-      onChunk: (delta, full) => {
-        challengerFull = full
-        setChallengerContent(full)
-        scrollToBottom(challengerRef)
-      },
-      onDone: (full) => {
-        challengerFull = full
-      },
-      onError: (err) => {
-        setError(`Challenger error: ${err.message}`)
-        setPhase(PHASES.IDLE)
-      },
-    })
+      ]
+      for (let i = 0; i < challengerHistory.length; i++) {
+        messagesForA.push({ role: 'assistant', content: challengerHistory[i] })
+        if (criticHistory[i]) {
+          messagesForA.push({ role: 'user', content: criticHistory[i] })
+        }
+      }
 
-    if (!challengerFull) return
+      let aFull = ''
+      let aError = false
 
-    setPhase(PHASES.CRITIC)
+      await streamChatCompletion({
+        apiKey,
+        model: modelA,
+        messages: messagesForA,
+        onChunk: (delta, full) => {
+          aFull = full
+          setStreamingChallenger(full)
+          scrollToBottom(challengerRef)
+        },
+        onDone: (full) => {
+          aFull = full
+          challengerHistory.push(full)
+          setChallengerMessages(challengerHistory.map((c, i) => ({ content: c, iteration: i + 1 })))
+          setStreamingChallenger('')
+        },
+        onError: (err) => {
+          setError(`Challenger error (iteration ${iter}): ${err.message}`)
+          setPhase(PHASES.IDLE)
+          aError = true
+        },
+      })
 
-    await streamChatCompletion({
-      apiKey,
-      model: modelB,
-      messages: [
+      if (aError || !aFull) return
+
+      // --- Model B turn ---
+      setPhase(PHASES.CRITIC)
+
+      const messagesForB = [
         { role: 'system', content: CRITIC_SYSTEM },
         {
           role: 'user',
-          content: `Original question: "${currentQuestion}"\n\nAI Response to critique:\n\n${challengerFull}`,
+          content: `Original question: "${currentQuestion}"\n\nAI Response to critique:\n\n${challengerHistory[0]}`,
         },
-      ],
-      onChunk: (delta, full) => {
-        setCriticContent(full)
-        scrollToBottom(criticRef)
-      },
-      onDone: (full) => {
-        setPhase(PHASES.DONE)
-        setRounds(r => r + 1)
-      },
-      onError: (err) => {
-        setError(`Critic error: ${err.message}`)
-        setPhase(PHASES.DONE)
-      },
-    })
+      ]
+      for (let i = 0; i < criticHistory.length; i++) {
+        messagesForB.push({ role: 'assistant', content: criticHistory[i] })
+        if (challengerHistory[i + 1]) {
+          messagesForB.push({
+            role: 'user',
+            content: `Model A's response to your critique:\n\n${challengerHistory[i + 1]}`,
+          })
+        }
+      }
+
+      let bFull = ''
+      let bError = false
+
+      await streamChatCompletion({
+        apiKey,
+        model: modelB,
+        messages: messagesForB,
+        onChunk: (delta, full) => {
+          bFull = full
+          setStreamingCritic(full)
+          scrollToBottom(criticRef)
+        },
+        onDone: (full) => {
+          bFull = full
+          criticHistory.push(full)
+          setCriticMessages(criticHistory.map((c, i) => ({ content: c, iteration: i + 1 })))
+          setStreamingCritic('')
+        },
+        onError: (err) => {
+          setError(`Critic error (iteration ${iter}): ${err.message}`)
+          setPhase(PHASES.DONE)
+          bError = true
+        },
+      })
+
+      if (bError) break
+    }
+
+    setPhase(PHASES.DONE)
+    setRounds(r => r + 1)
   }
 
-  const challengerStatus = phase === PHASES.CHALLENGER ? 'active' : (challengerContent ? 'done' : 'idle')
-  const criticStatus = phase === PHASES.CRITIC ? 'active' : phase === PHASES.CHALLENGER ? 'waiting' : (criticContent ? 'done' : 'idle')
+  const challengerStatus = phase === PHASES.CHALLENGER ? 'active' : (challengerMessages.length > 0 ? 'done' : 'idle')
+  const criticStatus = phase === PHASES.CRITIC ? 'active'
+    : (phase === PHASES.CHALLENGER && criticMessages.length === 0) ? 'waiting'
+    : (criticMessages.length > 0 ? 'done' : 'idle')
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto px-4 pb-8">
@@ -147,9 +219,16 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
           <span className="text-4xl">⚔️</span>
         </div>
         <p className="text-gray-400 text-sm max-w-xl mx-auto">
-          One model answers. The other critiques. Who will emerge victorious?
+          One model answers. The other critiques. They go back and forth for multiple iterations!
         </p>
-        {rounds > 0 && (
+        {isRunning && (
+          <div className="mt-2 inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-full px-4 py-1">
+            <span className="text-blue-400 text-sm font-bold">
+              {phase === PHASES.CHALLENGER ? '⚔️' : '🔍'} Iteration {currentIteration} / {maxIterations}
+            </span>
+          </div>
+        )}
+        {rounds > 0 && !isRunning && (
           <div className="mt-2 inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
             <span className="text-yellow-400 text-sm font-bold">Round {rounds} Complete</span>
           </div>
@@ -187,27 +266,44 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
 
       {/* Question Input */}
       <div className="bg-gray-900/80 border border-gray-700/50 rounded-xl p-4">
-        <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
-          Your Question
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Your Question
+          </label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Iterations
+            </label>
+            <input
+              type="number"
+              value={maxIterations}
+              onChange={e => setMaxIterations(Math.min(MAX_ITERATIONS, Math.max(MIN_ITERATIONS, parseInt(e.target.value, 10) || MIN_ITERATIONS)))}
+              min={MIN_ITERATIONS}
+              max={MAX_ITERATIONS}
+              disabled={isRunning}
+              className="w-16 bg-gray-800/60 border border-gray-600/50 rounded-lg px-2 py-1 text-gray-100 text-sm text-center focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/20 transition-all disabled:opacity-50"
+            />
+            <span className="text-gray-600 text-xs">({MIN_ITERATIONS}–{MAX_ITERATIONS})</span>
+          </div>
+        </div>
         <div className="flex gap-3">
-          <textarea
+          <input
+            type="text"
             value={question}
             onChange={e => setQuestion(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) startBattle()
+              if (e.key === 'Enter') startBattle()
             }}
             placeholder="Ask anything — the challenger will answer, the critic will strike…"
-            rows={3}
             disabled={isRunning}
-            className="flex-1 bg-gray-800/60 border border-gray-600/50 rounded-lg px-4 py-3 text-gray-100 
-              placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-yellow-500/50 
+            className="flex-1 bg-gray-800/60 border border-gray-600/50 rounded-lg px-4 py-2 text-gray-100 
+              placeholder-gray-500 text-sm focus:outline-none focus:border-yellow-500/50 
               focus:ring-1 focus:ring-yellow-500/20 transition-all disabled:opacity-50"
           />
           <button
             onClick={startBattle}
             disabled={!question.trim() || isRunning || !apiKey}
-            className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 
+            className="flex-shrink-0 px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 
               hover:to-orange-400 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500
               text-gray-900 font-bold rounded-lg transition-all duration-200 text-sm
               disabled:cursor-not-allowed active:scale-95 shadow-lg hover:shadow-orange-500/25"
@@ -228,7 +324,7 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
         {!apiKey && (
           <p className="text-yellow-500/70 text-xs mt-2">⚠ Enter your OpenRouter API key to start battles</p>
         )}
-        <p className="text-gray-600 text-xs mt-1">Tip: Ctrl+Enter to battle</p>
+        <p className="text-gray-600 text-xs mt-1">Tip: Press Enter to battle</p>
       </div>
 
       {/* Error */}
@@ -259,18 +355,27 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
             ref={challengerRef}
             className="p-4 min-h-[200px] max-h-[500px] overflow-y-auto"
           >
-            {phase === PHASES.CHALLENGER && !challengerContent && <LoadingDots />}
-            {challengerContent ? (
-              <ChatMessage
-                content={challengerContent}
-                isStreaming={phase === PHASES.CHALLENGER}
-                side="left"
-              />
-            ) : phase === PHASES.IDLE ? (
+            {phase === PHASES.CHALLENGER && challengerMessages.length === 0 && !streamingChallenger && <LoadingDots />}
+
+            {challengerMessages.map((msg) => (
+              <div key={msg.iteration}>
+                {msg.iteration > 1 && <IterationDivider iteration={msg.iteration} side="left" />}
+                <ChatMessage content={msg.content} isStreaming={false} />
+              </div>
+            ))}
+
+            {streamingChallenger && (
+              <div>
+                {challengerMessages.length > 0 && <IterationDivider iteration={currentIteration} side="left" />}
+                <ChatMessage content={streamingChallenger} isStreaming={phase === PHASES.CHALLENGER} />
+              </div>
+            )}
+
+            {challengerMessages.length === 0 && !streamingChallenger && phase === PHASES.IDLE && (
               <div className="flex items-center justify-center h-full min-h-[180px] text-gray-600 text-sm">
                 Awaiting your question…
               </div>
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -278,7 +383,7 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
         <div className="battle-panel-red glow-red rounded-xl overflow-hidden animate-slide-in-right">
           <div className="flex items-center justify-between px-4 py-3 border-b border-red-500/20 bg-red-950/30">
             <div className="flex items-center gap-2">
-              <span className="text-red-400 text-lg">🔍</span>
+              <span className="text-red-400 text-lg">��</span>
               <div>
                 <div className="text-red-300 font-bold text-sm">Critic</div>
                 <div className="text-red-500/70 text-xs truncate max-w-[160px]">{modelB}</div>
@@ -291,8 +396,9 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
             ref={criticRef}
             className="p-4 min-h-[200px] max-h-[500px] overflow-y-auto"
           >
-            {phase === PHASES.CRITIC && !criticContent && <LoadingDots />}
-            {phase === PHASES.CHALLENGER && !criticContent && (
+            {phase === PHASES.CRITIC && criticMessages.length === 0 && !streamingCritic && <LoadingDots />}
+
+            {phase === PHASES.CHALLENGER && criticMessages.length === 0 && (
               <div className="flex items-center gap-2 text-gray-600 text-sm mt-2">
                 <svg className="animate-spin w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -301,28 +407,37 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
                 Waiting for challenger to finish…
               </div>
             )}
-            {criticContent ? (
-              <ChatMessage
-                content={criticContent}
-                isStreaming={phase === PHASES.CRITIC}
-                side="right"
-              />
-            ) : phase === PHASES.IDLE ? (
+
+            {criticMessages.map((msg) => (
+              <div key={msg.iteration}>
+                {msg.iteration > 1 && <IterationDivider iteration={msg.iteration} side="right" />}
+                <ChatMessage content={msg.content} isStreaming={false} />
+              </div>
+            ))}
+
+            {streamingCritic && (
+              <div>
+                {criticMessages.length > 0 && <IterationDivider iteration={currentIteration} side="right" />}
+                <ChatMessage content={streamingCritic} isStreaming={phase === PHASES.CRITIC} />
+              </div>
+            )}
+
+            {criticMessages.length === 0 && !streamingCritic && phase === PHASES.IDLE && (
               <div className="flex items-center justify-center h-full min-h-[180px] text-gray-600 text-sm">
                 Awaiting challenger's response…
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
 
       {/* Battle Result Banner */}
-      {phase === PHASES.DONE && challengerContent && criticContent && (
+      {phase === PHASES.DONE && challengerMessages.length > 0 && criticMessages.length > 0 && (
         <div className="bg-gradient-to-r from-blue-950/50 via-yellow-950/30 to-red-950/50 border border-yellow-500/30 
           rounded-xl p-4 text-center animate-bounce-in">
-          <div className="text-yellow-400 font-black text-xl mb-1">⚡ Round {rounds} Complete!</div>
+          <div className="text-yellow-400 font-black text-xl mb-1">⚡ Battle {rounds} Complete!</div>
           <p className="text-gray-400 text-sm">
-            The critic has spoken. Ask another question to continue the battle!
+            {challengerMessages.length} iteration{challengerMessages.length !== 1 ? 's' : ''} complete. Ask another question to start a new battle!
           </p>
         </div>
       )}
