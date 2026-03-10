@@ -21,8 +21,6 @@ service cloud.firestore {
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
-    // Any authenticated user can read other users (for leaderboard / match display)
-    // Only the user themselves or an admin can write to their profile
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId);
@@ -30,7 +28,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── Username registry (for uniqueness checking) ───────────────────────
+    // ── Username registry ─────────────────────────────────────────────────
     match /usernames/{username} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -38,10 +36,16 @@ service cloud.firestore {
     }
 
     // ── Admin settings ────────────────────────────────────────────────────
-    // All authenticated users can read settings (needed to fetch the API key
-    // and available models). Only admins can write.
-    match /adminSettings/{docId} {
+    // public — available model list; readable by all authenticated users
+    // secret — OpenRouter API key; readable ONLY by admins in the browser.
+    //          The Cloud Function uses the Admin SDK which bypasses these rules.
+    match /adminSettings/public {
       allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /adminSettings/secret {
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
@@ -58,32 +62,27 @@ service cloud.firestore {
     }
 
     // ── Private player configs ────────────────────────────────────────────
-    // Each player can only read/write their own private config doc.
-    // Doc ID format: {matchId}_p1 or {matchId}_p2
+    // Each player can only read/write their own doc. The Cloud Function reads
+    // these via Admin SDK (bypasses rules) to build the AI prompt server-side.
     match /matchPrivate/{docId} {
-      // Only the owner of the document can read it
       allow read: if isAuthenticated() &&
         resource.data.uid == request.auth.uid;
-      // Allow create for the player who owns it
       allow create: if isAuthenticated() &&
         request.resource.data.uid == request.auth.uid;
-      // Allow update only by the doc owner
       allow update: if isAuthenticated() &&
         resource.data.uid == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     // ── Game state ────────────────────────────────────────────────────────
-    // Both players (and spectators) can read game state.
-    // Only the current player's turn can write (player 1 or player 2 of that match).
+    // All authenticated users can read (spectators too).
+    // Only Player 1 can create the initial doc. All subsequent updates are
+    // made by the Cloud Function (Admin SDK, bypasses rules) — no client
+    // update permission is needed during active play.
     match /gameState/{matchId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
         get(/databases/$(database)/documents/matches/$(matchId)).data.player1Uid == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        get(/databases/$(database)/documents/matches/$(matchId)).data.player1Uid == request.auth.uid ||
-        get(/databases/$(database)/documents/matches/$(matchId)).data.player2Uid == request.auth.uid
-      );
       allow delete: if isAdmin();
     }
   }

@@ -1,7 +1,6 @@
 import {
   doc, collection, setDoc, getDoc, updateDoc,
   onSnapshot, serverTimestamp, query, orderBy, limit, getDocs,
-  increment,
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
@@ -118,6 +117,10 @@ export async function initGameState(matchId, initialBoard) {
     winner: null,
     isThinking: false,
     thinkingPlayer: null,
+    // pendingAiMove=true signals the Cloud Function to begin processing moves.
+    // All subsequent game state updates are handled server-side.
+    pendingAiMove: true,
+    currentThinkingText: '',
     player1LastThinking: '',
     player2LastThinking: '',
     error: null,
@@ -139,35 +142,32 @@ export function subscribeToGameState(matchId, callback) {
   })
 }
 
-export async function finishMatch(matchId, { winner, winnerUsername, moveCount }) {
-  const updates = { winner, winnerUsername, moveCount, status: 'finished', finishedAt: serverTimestamp() }
-  await updateDoc(doc(db, 'matches', matchId), updates)
-
-  // Update player stats
-  const matchSnap = await getDoc(doc(db, 'matches', matchId))
-  const matchData = matchSnap.data()
-
-  if (matchData.player1Uid) {
-    const p1Updates = { matchesPlayed: increment(1) }
-    if (winner === 'player1') p1Updates.matchesWon = increment(1)
-    await updateDoc(doc(db, 'users', matchData.player1Uid), p1Updates)
-  }
-  if (matchData.player2Uid) {
-    const p2Updates = { matchesPlayed: increment(1) }
-    if (winner === 'player2') p2Updates.matchesWon = increment(1)
-    await updateDoc(doc(db, 'users', matchData.player2Uid), p2Updates)
-  }
-}
+// NOTE: finishMatch (match status + player stats) is handled server-side by the
+// Cloud Function (functions/index.js) which uses the Firebase Admin SDK.
 
 // ─── Admin settings ───────────────────────────────────────────────────────────
-export async function getAdminSettings() {
-  const snap = await getDoc(doc(db, 'adminSettings', 'config'))
+// adminSettings/public — available models list (readable by all authenticated users)
+// adminSettings/secret — OpenRouter API key (readable only by admins and Cloud Functions)
+
+export async function getAdminPublicSettings() {
+  const snap = await getDoc(doc(db, 'adminSettings', 'public'))
   if (!snap.exists()) return null
   return snap.data()
 }
 
-export async function saveAdminSettings(settings) {
-  await setDoc(doc(db, 'adminSettings', 'config'), settings, { merge: true })
+export async function saveAdminPublicSettings(settings) {
+  await setDoc(doc(db, 'adminSettings', 'public'), settings, { merge: true })
+}
+
+export async function getAdminSecretSettings() {
+  // Security rules restrict this to admin users; Cloud Functions use Admin SDK (bypasses rules)
+  const snap = await getDoc(doc(db, 'adminSettings', 'secret'))
+  if (!snap.exists()) return null
+  return snap.data()
+}
+
+export async function saveAdminSecretSettings(settings) {
+  await setDoc(doc(db, 'adminSettings', 'secret'), settings, { merge: true })
 }
 
 // ─── Admin: users list ────────────────────────────────────────────────────────

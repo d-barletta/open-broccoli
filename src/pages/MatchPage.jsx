@@ -1,14 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import { useAuth } from '../contexts/AuthContext'
 import {
   subscribeToMatch, subscribeToGameState, joinMatch,
   setPlayerReady, setPlayerNotReady,
-  savePrivateConfig, getPrivateConfig,
-  initGameState, updateGameState, finishMatch, getAdminSettings,
+  savePrivateConfig,
+  initGameState, getAdminPublicSettings,
 } from '../services/firestoreService'
-import { fetchModels, streamChatCompletion } from '../services/openrouter'
 import ModelSelector from '../components/ModelSelector'
 
 // ─── Board constants ──────────────────────────────────────────────────────────
@@ -20,83 +19,10 @@ const MIN_MOVES = 7
 const MAX_MOVES = 42
 const DEFAULT_MODEL_1 = 'openai/gpt-4o-mini'
 const DEFAULT_MODEL_2 = 'anthropic/claude-3-haiku'
-const PIECE_DROP_ANIMATION_MS = 600
-const WINNER_ANIMATION_DELAY_MS = 400
 
-// ─── Game helpers ─────────────────────────────────────────────────────────────
+// ─── Board display helpers (client-side only — game logic runs on the server) ─
 function createBoard() {
   return Array(ROWS).fill(null).map(() => Array(COLS).fill(0))
-}
-
-function dropPiece(board, col, player) {
-  for (let row = ROWS - 1; row >= 0; row--) {
-    if (board[row][col] === 0) {
-      const next = board.map(r => [...r])
-      next[row][col] = player
-      return { board: next, row }
-    }
-  }
-  return { board, row: -1 }
-}
-
-function checkWinner(board, row, col, player) {
-  const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]]
-  for (const [dr, dc] of dirs) {
-    let count = 1
-    for (const sign of [1, -1]) {
-      let r = row + sign * dr, c = col + sign * dc
-      while (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
-        count++; r += sign * dr; c += sign * dc
-      }
-    }
-    if (count >= 4) return true
-  }
-  return false
-}
-
-function findWinningCells(board, row, col, player) {
-  const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]]
-  for (const [dr, dc] of dirs) {
-    const cells = [[row, col]]
-    for (const sign of [1, -1]) {
-      let r = row + sign * dr, c = col + sign * dc
-      while (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
-        cells.push([r, c]); r += sign * dr; c += sign * dc
-      }
-    }
-    if (cells.length >= 4) return cells
-  }
-  return []
-}
-
-function isBoardFull(board) {
-  return board[0].every(cell => cell !== 0)
-}
-
-function formatBoard(board) {
-  const sym = { 0: '.', 1: 'R', 2: 'Y' }
-  const header = '  1 2 3 4 5 6 7'
-  const rows = board.map((row, i) => `${i + 1} ${row.map(c => sym[c]).join(' ')}`)
-  return [header, ...rows].join('\n')
-}
-
-function parseMove(text) {
-  const tagged = text.match(/MOVE\s*:\s*([1-7])/i)
-  if (tagged) return parseInt(tagged[1]) - 1
-  const nums = [...text.matchAll(/\b([1-7])\b/g)]
-  if (nums.length > 0) return parseInt(nums[nums.length - 1][1]) - 1
-  return -1
-}
-
-function pickValidColumn(board, preferred) {
-  if (preferred >= 0 && preferred < COLS && board[0][preferred] === 0) return preferred
-  for (let d = 1; d < COLS; d++) {
-    for (const sign of [1, -1]) {
-      const c = preferred + sign * d
-      if (c >= 0 && c < COLS && board[0][c] === 0) return c
-    }
-  }
-  return -1
 }
 
 function nextMoveBetStep(current, dir, forbidden) {
@@ -340,20 +266,7 @@ export default function MatchPage() {
   const [moveBet, setMoveBet] = useState(null)
   const [isReady, setIsReady] = useState(false)
   const [savingConfig, setSavingConfig] = useState(false)
-
-  // Game running state (local, for the active player)
-  const [localThinking, setLocalThinking] = useState('')
   const [lottieData, setLottieData] = useState(null)
-
-  const gameRunning = useRef(false)
-  const gameStateRef = useRef(null)
-  const matchRef = useRef(null)
-  const myConfigRef = useRef(null)
-  const apiKeyRef = useRef(null)
-
-  // Keep refs up to date
-  useEffect(() => { gameStateRef.current = gameState }, [gameState])
-  useEffect(() => { matchRef.current = match }, [match])
 
   // Determine which player number I am
   const myPlayerNum = match
@@ -374,9 +287,9 @@ export default function MatchPage() {
     return unsub
   }, [matchId])
 
-  // Subscribe to game state when playing
+  // Subscribe to game state when playing or finished
   useEffect(() => {
-    if (!match || match.status !== 'playing' && match.status !== 'finished') return
+    if (!match || (match.status !== 'playing' && match.status !== 'finished')) return
     const unsub = subscribeToGameState(matchId, (gs) => {
       setGameState(gs)
     })
@@ -396,35 +309,21 @@ export default function MatchPage() {
     if (!match || !currentUser || !userProfile) return
     if (match.status !== 'waiting_p2') return
     if (match.player1Uid === currentUser.uid) return
-    // This user is not P1 and match needs P2 — auto-join
     joinMatch(matchId, currentUser.uid, userProfile.username).catch(err => {
       setJoinError(err.message)
     })
   }, [match?.status, match?.player1Uid, currentUser?.uid])
 
-  // Fetch models list (from admin settings or OpenRouter directly)
+  // Fetch model list from admin public settings
   useEffect(() => {
     if (!currentUser) return
     setModelsLoading(true)
-    getAdminSettings().then(settings => {
-      const key = settings?.openrouterApiKey || localStorage.getItem('openrouter_api_key') || ''
-      apiKeyRef.current = key
-      if (!key) { setModelsLoading(false); return }
+    getAdminPublicSettings().then(settings => {
       if (settings?.availableModels?.length > 0) {
         setModels(settings.availableModels.map(id => ({ id, name: id })))
-        setModelsLoading(false)
-        return
       }
-      fetchModels(key)
-        .then(data => {
-          const sorted = data
-            .filter(m => m.id && !m.id.includes('vision') && m.context_length > 0)
-            .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
-          setModels(sorted)
-        })
-        .catch(() => {})
-        .finally(() => setModelsLoading(false))
-    }).catch(() => setModelsLoading(false))
+      // If no models configured, ModelSelector falls back to its hardcoded popular list
+    }).catch(() => {}).finally(() => setModelsLoading(false))
   }, [currentUser])
 
   // Set default model based on player number
@@ -433,195 +332,29 @@ export default function MatchPage() {
     else if (myPlayerNum === 2) setSelectedModel(DEFAULT_MODEL_2)
   }, [myPlayerNum])
 
-  // ── Game engine: run my AI's turn when it's my player's turn ────────────────
-  const runMyTurn = useCallback(async (gs, myPlayerNum, myConfig, apiKey) => {
-    if (!gs || !myConfig || !apiKey) return
-    if (gs.winner !== null) return
-    if (gs.currentPlayer !== myPlayerNum) return
-    if (gs.isThinking) return
-    // Claim the turn immediately to prevent concurrent execution
-    if (gameRunning.current) return
-    gameRunning.current = true
-    const board = gs.board
-    const validCols = Array.from({ length: COLS }, (_, i) => i).filter(c => board[0][c] === 0).map(c => c + 1)
-    if (validCols.length === 0) return
-
-    const isP1 = myPlayerNum === PLAYER_1
-    const playerSym = isP1 ? 'R (Red 🔴)' : 'Y (Yellow 🟡)'
-    const opponentSym = isP1 ? 'Y (Yellow 🟡)' : 'R (Red 🔴)'
-
-    // Mark as thinking in Firestore
-    await updateGameState(matchId, { isThinking: true, thinkingPlayer: myPlayerNum })
-    setLocalThinking('')
-
-    const systemPrompt = `You are playing Connect Four. You are ${playerSym}. Your opponent is ${opponentSym}.
-
-Board key: . = empty  R = Red (Player 1)  Y = Yellow (Player 2)
-Columns: 1-7 (left→right).  Rows: 1-6 (top→bottom, pieces fall to the bottom).
-Available columns to play: ${validCols.join(', ')}.
-
-${myConfig.instructions ? `Your strategy:\n${myConfig.instructions}\n` : ''}
-
-Think step-by-step about the best move, then end your response with exactly:
-MOVE: <column number>
-
-Pick only from the available columns listed above.`
-
-    const boardStr = formatBoard(board)
-    const userMsg = `Current board:\n\n${boardStr}\n\nYour turn. Available columns: ${validCols.join(', ')}. What is your move?`
-
-    let fullResponse = ''
-    let moveErr = false
-
-    await streamChatCompletion({
-      apiKey,
-      model: myConfig.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMsg },
-      ],
-      maxTokens: 512,
-      onChunk: (_, full) => {
-        fullResponse = full
-        setLocalThinking(full)
-      },
-      onDone: (full) => { fullResponse = full },
-      onError: (err) => {
-        moveErr = true
-        updateGameState(matchId, { isThinking: false, thinkingPlayer: null, error: `Player ${myPlayerNum} error: ${err.message}` })
-      },
-    })
-
-    if (moveErr) { gameRunning.current = false; return }
-
-    // Save thinking text and resolve move
-    const rawCol = parseMove(fullResponse)
-    const col = pickValidColumn(board, rawCol)
-
-    if (col === -1) {
-      // Board is completely full — genuine draw (pickValidColumn already tried all columns)
-      const thinkingKey = `player${myPlayerNum}LastThinking`
-      await updateGameState(matchId, { winner: 'draw', isThinking: false, thinkingPlayer: null, [thinkingKey]: fullResponse })
-      await finishMatch(matchId, { winner: 'draw', winnerUsername: null, moveCount: gs.moveCount })
-      gameRunning.current = false
-      return
-    }
-
-    const { board: nextBoard, row } = dropPiece(board, col, myPlayerNum)
-    const newMoveCount = gs.moveCount + 1
-    const newMoveLog = [...(gs.moveLog || []), `Move ${newMoveCount}: Player ${myPlayerNum} ${isP1 ? '🔴' : '🟡'} → column ${col + 1}`]
-    const thinkingKey = `player${myPlayerNum}LastThinking`
-
-    if (checkWinner(nextBoard, row, col, myPlayerNum)) {
-      const winCells = findWinningCells(nextBoard, row, col, myPlayerNum)
-      await updateGameState(matchId, {
-        board: nextBoard,
-        lastMove: { row, col },
-        moveLog: newMoveLog,
-        moveCount: newMoveCount,
-        winningCells: winCells,
-        winner: myPlayerNum,
-        isThinking: false,
-        thinkingPlayer: null,
-        [thinkingKey]: fullResponse,
-      })
-      const winnerUsername = myPlayerNum === 1 ? matchRef.current?.player1Username : matchRef.current?.player2Username
-      await finishMatch(matchId, {
-        winner: `player${myPlayerNum}`,
-        winnerUsername: winnerUsername || `Player ${myPlayerNum}`,
-        moveCount: newMoveCount,
-      })
-      gameRunning.current = false
-      return
-    }
-
-    if (isBoardFull(nextBoard)) {
-      await updateGameState(matchId, {
-        board: nextBoard,
-        lastMove: { row, col },
-        moveLog: newMoveLog,
-        moveCount: newMoveCount,
-        winner: 'draw',
-        isThinking: false,
-        thinkingPlayer: null,
-        [thinkingKey]: fullResponse,
-      })
-      await finishMatch(matchId, { winner: 'draw', winnerUsername: null, moveCount: newMoveCount })
-      gameRunning.current = false
-      return
-    }
-
-    // Switch turns
-    const nextPlayer = myPlayerNum === PLAYER_1 ? PLAYER_2 : PLAYER_1
-    await updateGameState(matchId, {
-      board: nextBoard,
-      currentPlayer: nextPlayer,
-      lastMove: { row, col },
-      moveLog: newMoveLog,
-      moveCount: newMoveCount,
-      isThinking: false,
-      thinkingPlayer: null,
-      [thinkingKey]: fullResponse,
-    })
-
-    gameRunning.current = false
-    setLocalThinking('')
-  }, [matchId])
-
-  // Watch game state for my turns
-  useEffect(() => {
-    if (!gameState || !myPlayerNum || !myConfigRef.current || !apiKeyRef.current) return
-    if (match?.status !== 'playing') return
-    if (gameState.winner !== null) return
-    if (gameState.currentPlayer !== myPlayerNum) return
-    if (gameState.isThinking) return
-    if (gameRunning.current) return
-
-    runMyTurn(gameState, myPlayerNum, myConfigRef.current, apiKeyRef.current)
-  }, [gameState?.currentPlayer, gameState?.isThinking, gameState?.winner, myPlayerNum, match?.status, runMyTurn])
-
-  // Start game when both ready
+  // Start game when both players are ready (Player 1 initialises game state,
+  // which sets pendingAiMove=true and triggers the Cloud Function chain).
+  // This only runs AFTER both players have saved their private config (model +
+  // instructions) and called setPlayerReady — so the CF can read both configs.
   useEffect(() => {
     if (!match || match.status !== 'setup') return
     if (!match.player1Ready || !match.player2Ready) return
-    if (myPlayerNum !== 1) return // Only P1 initializes the game state
-    // P1 kicks off the game
+    if (myPlayerNum !== 1) return
     initGameState(matchId, createBoard()).catch(err => setError(err.message))
   }, [match?.player1Ready, match?.player2Ready, match?.status, myPlayerNum, matchId])
-
-  // Load my private config when game starts
-  useEffect(() => {
-    if (!match || !currentUser || !myPlayerNum) return
-    if (match.status !== 'playing' && match.status !== 'finished') return
-    if (myConfigRef.current) return
-    getPrivateConfig(matchId, myPlayerNum).then(config => {
-      if (config) {
-        myConfigRef.current = config
-        // Also get API key
-        getAdminSettings().then(settings => {
-          apiKeyRef.current = settings?.openrouterApiKey || localStorage.getItem('openrouter_api_key') || ''
-        })
-      }
-    })
-  }, [match?.status, matchId, currentUser, myPlayerNum])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   async function handleReady() {
     if (!myPlayerNum) return
-    const allSet = columnBet !== null && moveBet !== null && selectedModel
-    if (!allSet) return
+    if (columnBet === null || moveBet === null || !selectedModel) return
     setSavingConfig(true)
     try {
-      // Save private config
       await savePrivateConfig(matchId, myPlayerNum, currentUser.uid, {
         model: selectedModel,
         instructions,
         columnBet,
         moveBet,
       })
-      // Cache for game engine
-      myConfigRef.current = { model: selectedModel, instructions, columnBet, moveBet }
-      // Mark ready in match doc (reveals model and bets but NOT instructions)
       await setPlayerReady(matchId, myPlayerNum, { model: selectedModel, columnBet, moveBet })
       setIsReady(true)
     } catch (err) {
@@ -636,14 +369,12 @@ Pick only from the available columns listed above.`
     try {
       await setPlayerNotReady(matchId, myPlayerNum)
       setIsReady(false)
-      myConfigRef.current = null
     } catch (err) {
       setError(err.message)
     }
   }
 
   function copyMatchLink() {
-    // Use Vite's BASE_URL (set in vite.config.js) for reliable path detection
     const base = import.meta.env.BASE_URL || '/'
     const url = `${window.location.origin}${base}#/match/${matchId}`
     navigator.clipboard.writeText(url).then(() => {
@@ -849,8 +580,9 @@ Pick only from the available columns listed above.`
 
     const board = gs.board || createBoard()
     const isMyTurn = !isSpectator && gs.currentPlayer === myPlayerNum && !gs.isThinking && gs.winner === null
-    const thinking1 = (myPlayerNum === 1 && gs.isThinking && gs.thinkingPlayer === 1) ? localThinking : (gs.player1LastThinking || '')
-    const thinking2 = (myPlayerNum === 2 && gs.isThinking && gs.thinkingPlayer === 2) ? localThinking : (gs.player2LastThinking || '')
+    // thinking text: live streaming from Firestore (currentThinkingText) or completed last thinking
+    const thinking1 = (gs.isThinking && gs.thinkingPlayer === 1) ? (gs.currentThinkingText || '') : (gs.player1LastThinking || '')
+    const thinking2 = (gs.isThinking && gs.thinkingPlayer === 2) ? (gs.currentThinkingText || '') : (gs.player2LastThinking || '')
     const isThinking1 = gs.isThinking && gs.thinkingPlayer === 1
     const isThinking2 = gs.isThinking && gs.thinkingPlayer === 2
 
@@ -939,7 +671,7 @@ Pick only from the available columns listed above.`
               {gs.currentPlayer === PLAYER_1 ? '🔴' : '🟡'}
               {gs.isThinking
                 ? ` ${gs.currentPlayer === PLAYER_1 ? match.player1Username : match.player2Username} is thinking…`
-                : isMyTurn ? ' Your AI is up next' : ` Waiting for ${gs.currentPlayer === PLAYER_1 ? match.player1Username : match.player2Username}…`}
+                : ` ${gs.currentPlayer === PLAYER_1 ? match.player1Username : match.player2Username}'s turn`}
               {` · Move ${gs.moveCount + 1}`}
             </div>
           </div>

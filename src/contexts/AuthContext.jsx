@@ -87,16 +87,35 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user)
-      if (user) {
-        await fetchUserProfile(user.uid)
-      } else {
-        setUserProfile(null)
-      }
+    // Fallback: if Firebase never fires the auth callback (e.g. missing config),
+    // still allow the app to render the login page after a short delay.
+    const fallbackTimer = setTimeout(() => setLoading(false), 3000)
+
+    let unsubscribe = () => {}
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (user) => {
+          clearTimeout(fallbackTimer)
+          setCurrentUser(user)
+          if (user) {
+            await fetchUserProfile(user.uid)
+          } else {
+            setUserProfile(null)
+          }
+          setLoading(false)
+        },
+        () => {
+          // Firebase auth error (e.g. invalid-api-key in dev without .env.local)
+          clearTimeout(fallbackTimer)
+          setLoading(false)
+        }
+      )
+    } catch {
+      clearTimeout(fallbackTimer)
       setLoading(false)
-    })
-    return unsubscribe
+    }
+    return () => { unsubscribe(); clearTimeout(fallbackTimer) }
   }, [])
 
   const value = {

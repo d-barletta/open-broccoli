@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
-  getAdminSettings, saveAdminSettings,
+  getAdminPublicSettings, saveAdminPublicSettings,
+  getAdminSecretSettings, saveAdminSecretSettings,
   getAllUsers, updateUserAdmin, getAllMatches,
 } from '../services/firestoreService'
 
@@ -38,11 +39,9 @@ export default function AdminPage() {
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true)
     try {
-      const s = await getAdminSettings()
-      if (s) {
-        setOpenrouterApiKey(s.openrouterApiKey || '')
-        setAvailableModels((s.availableModels || []).join('\n'))
-      }
+      const [pub, sec] = await Promise.all([getAdminPublicSettings(), getAdminSecretSettings()])
+      setAvailableModels((pub?.availableModels || []).join('\n'))
+      setOpenrouterApiKey(sec?.openrouterApiKey || '')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -87,10 +86,10 @@ export default function AdminPage() {
     setSettingsLoading(true)
     try {
       const modelsList = availableModels.split('\n').map(s => s.trim()).filter(Boolean)
-      await saveAdminSettings({
-        openrouterApiKey,
-        availableModels: modelsList,
-      })
+      // Save available models to public doc (readable by all authenticated users)
+      await saveAdminPublicSettings({ availableModels: modelsList })
+      // Save API key to secret doc (not readable by non-admin clients; Cloud Function uses Admin SDK)
+      await saveAdminSecretSettings({ openrouterApiKey })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
