@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import BattleArena from './components/BattleArena'
+import ConnectFourGame from './components/ConnectFourGame'
 import ApiKeyModal from './components/ApiKeyModal'
 import { fetchModels } from './services/openrouter'
+
+const PAGES = { BATTLE: 'battle', CONNECT_FOUR: 'connect_four' }
 
 const LS_KEY = 'openrouter_api_key'
 
@@ -11,6 +14,7 @@ export default function App() {
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelsError, setModelsError] = useState(null)
   const [showKeyPanel, setShowKeyPanel] = useState(!localStorage.getItem(LS_KEY))
+  const [page, setPage] = useState(PAGES.CONNECT_FOUR)
 
   const saveApiKey = useCallback((key) => {
     setApiKey(key)
@@ -56,10 +60,35 @@ export default function App() {
       {/* Top bar */}
       <header className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🥦</span>
-            <span className="font-black text-sm text-gray-300 tracking-tight">open-broccoli</span>
-            <span className="text-gray-700 text-xs ml-1">/ LLM Battle Arena</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🥦</span>
+              <span className="font-black text-sm text-gray-300 tracking-tight">open-broccoli</span>
+            </div>
+
+            {/* Navigation tabs */}
+            <nav className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(PAGES.BATTLE)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-medium
+                  ${page === PAGES.BATTLE
+                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                    : 'bg-gray-800/40 border-gray-700/40 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                  }`}
+              >
+                ⚔️ Battle Arena
+              </button>
+              <button
+                onClick={() => setPage(PAGES.CONNECT_FOUR)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-medium
+                  ${page === PAGES.CONNECT_FOUR
+                    ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+                    : 'bg-gray-800/40 border-gray-700/40 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                  }`}
+              >
+                🎮 Connect 4
+              </button>
+            </nav>
           </div>
 
           <div className="flex items-center gap-3">
@@ -98,7 +127,12 @@ export default function App() {
       </header>
 
       <main>
-        <BattleArena apiKey={apiKey} models={models} modelsLoading={modelsLoading} />
+        {page === PAGES.BATTLE && (
+          <BattleArena apiKey={apiKey} models={models} modelsLoading={modelsLoading} />
+        )}
+        {page === PAGES.CONNECT_FOUR && (
+          <ConnectFourGame apiKey={apiKey} models={models} modelsLoading={modelsLoading} />
+        )}
       </main>
 
       <footer className="border-t border-gray-800/40 py-6 text-center text-xs text-gray-700">

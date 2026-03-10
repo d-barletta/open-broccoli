@@ -102,3 +102,15 @@
     @apply border-l-2 border-gray-600 pl-4 italic text-gray-400 my-3;
   }
 }
+
+/* Connect Four piece drop animation */
+@keyframes dropIn {
+  0%   { transform: translateY(-320px); opacity: 0.6; }
+  70%  { transform: translateY(6px); }
+  85%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-drop-in {
+  animation: dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
