@@ -119,7 +119,17 @@ function LoadingDots() {
 const MIN_MOVES = 7   // fastest possible win (4 by one player, 3 by the other)
 const MAX_MOVES = 42  // full board (6 × 7)
 
-function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange, bet, onBetChange, moveBet, onMoveBetChange, models, modelsLoading }) {
+// Helper: skip over a forbidden value when stepping through move counts
+function nextMoveBetStep(current, dir, forbidden) {
+  let v = current + dir
+  if (v === forbidden) v += dir
+  return Math.min(MAX_MOVES, Math.max(MIN_MOVES, v))
+}
+
+function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange,
+  bet, onBetChange, otherBet,
+  moveBet, onMoveBetChange, otherMoveBet,
+  models, modelsLoading }) {
   const isP1 = player === 1
   return (
     <div className={`rounded-xl overflow-hidden ${isP1
@@ -169,22 +179,30 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
           </label>
           <p className="text-gray-500 text-xs mb-2">Pick which column the final winning piece will land in.</p>
           <div className="flex flex-wrap gap-1.5">
-            {Array.from({ length: COLS }, (_, i) => i + 1).map(col => (
-              <button
-                key={col}
-                type="button"
-                onClick={() => onBetChange(bet === col ? null : col)}
-                className={`w-9 h-9 rounded-lg font-bold text-sm transition-all active:scale-95
-                  ${bet === col
-                    ? isP1
-                      ? 'bg-red-500 text-white shadow-lg shadow-red-700/40'
-                      : 'bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-600/40'
-                    : 'bg-gray-800/60 border border-gray-600/40 text-gray-400 hover:border-gray-400/60 hover:text-gray-200'
-                  }`}
-              >
-                {col}
-              </button>
-            ))}
+            {Array.from({ length: COLS }, (_, i) => i + 1).map(col => {
+              const isMine = bet === col
+              const isTaken = otherBet === col
+              return (
+                <button
+                  key={col}
+                  type="button"
+                  onClick={() => !isTaken && onBetChange(isMine ? null : col)}
+                  disabled={isTaken}
+                  title={isTaken ? `Already taken by Player ${isP1 ? 2 : 1}` : undefined}
+                  className={`w-9 h-9 rounded-lg font-bold text-sm transition-all active:scale-95
+                    ${isTaken
+                      ? 'bg-gray-800/30 border border-gray-700/30 text-gray-600 cursor-not-allowed opacity-50'
+                      : isMine
+                        ? isP1
+                          ? 'bg-red-500 text-white shadow-lg shadow-red-700/40'
+                          : 'bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-600/40'
+                        : 'bg-gray-800/60 border border-gray-600/40 text-gray-400 hover:border-gray-400/60 hover:text-gray-200'
+                    }`}
+                >
+                  {col}
+                </button>
+              )
+            })}
             {bet !== null && (
               <button
                 type="button"
@@ -214,37 +232,37 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
             <button
               type="button"
               onClick={() => {
-                const next = moveBet === null
-                  ? Math.floor((MIN_MOVES + MAX_MOVES) / 2)
-                  : Math.max(MIN_MOVES, moveBet - 1)
-                onMoveBetChange(next)
+                const start = moveBet === null ? Math.floor((MIN_MOVES + MAX_MOVES) / 2) : moveBet
+                onMoveBetChange(nextMoveBetStep(start, -1, otherMoveBet))
               }}
               className="w-9 h-9 rounded-lg bg-gray-800/60 border border-gray-600/40 text-gray-300
                 hover:border-gray-400/60 hover:text-white active:scale-95 transition-all font-bold text-lg"
             >−</button>
-            <input
-              type="number"
-              min={MIN_MOVES}
-              max={MAX_MOVES}
+            <select
               value={moveBet === null ? '' : moveBet}
               onChange={e => {
                 const v = parseInt(e.target.value, 10)
-                if (isNaN(v)) { onMoveBetChange(null); return }
-                onMoveBetChange(Math.min(MAX_MOVES, Math.max(MIN_MOVES, v)))
+                onMoveBetChange(isNaN(v) ? null : v)
               }}
-              placeholder="—"
-              className={`w-20 text-center bg-gray-800/60 border rounded-lg px-2 py-2 text-gray-100 text-sm
-                focus:outline-none focus:ring-2 transition-all
+              className={`w-28 bg-gray-800/60 border rounded-lg px-2 py-2 text-gray-100 text-sm
+                focus:outline-none focus:ring-2 transition-all text-center
                 ${isP1
                   ? 'border-red-500/40 focus:border-red-400 focus:ring-red-500/20'
                   : 'border-yellow-500/40 focus:border-yellow-400 focus:ring-yellow-500/20'
                 }`}
-            />
+            >
+              <option value="">— pick —</option>
+              {Array.from({ length: MAX_MOVES - MIN_MOVES + 1 }, (_, i) => i + MIN_MOVES).map(n => (
+                <option key={n} value={n} disabled={n === otherMoveBet}>
+                  {n}{n === otherMoveBet ? ' (taken)' : ''}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => {
-                const next = moveBet === null ? MIN_MOVES : Math.min(MAX_MOVES, moveBet + 1)
-                onMoveBetChange(next)
+                const start = moveBet === null ? Math.floor((MIN_MOVES + MAX_MOVES) / 2) : moveBet
+                onMoveBetChange(nextMoveBetStep(start, 1, otherMoveBet))
               }}
               className="w-9 h-9 rounded-lg bg-gray-800/60 border border-gray-600/40 text-gray-300
                 hover:border-gray-400/60 hover:text-white active:scale-95 transition-all font-bold text-lg"
@@ -304,14 +322,39 @@ function BoardCell({ cell, isWinning, isLast, rowIdx, colIdx }) {
   )
 }
 
-function ConnectBoard({ board, lastMove, winningCells }) {
+function ConnectBoard({ board, lastMove, winningCells, bet1 = null, bet2 = null }) {
   return (
     <div className="flex flex-col items-center">
+      {/* Bet indicators row — above column numbers */}
+      <div className="flex gap-1 mb-0.5 h-4">
+        {Array(COLS).fill(0).map((_, c) => {
+          const col1Based = c + 1
+          const p1Here = bet1 === col1Based
+          const p2Here = bet2 === col1Based
+          return (
+            <div key={c} className="w-10 flex items-center justify-center gap-0.5">
+              {p1Here && <span className="text-[10px] leading-none" title="Player 1 bet" aria-label="Player 1 bet">🔴</span>}
+              {p2Here && <span className="text-[10px] leading-none" title="Player 2 bet" aria-label="Player 2 bet">🟡</span>}
+            </div>
+          )
+        })}
+      </div>
+
       {/* Column labels */}
       <div className="flex gap-1 mb-1">
-        {Array(COLS).fill(0).map((_, c) => (
-          <div key={c} className="w-10 text-center text-gray-500 text-xs font-bold">{c + 1}</div>
-        ))}
+        {Array(COLS).fill(0).map((_, c) => {
+          const col1Based = c + 1
+          const p1Here = bet1 === col1Based
+          const p2Here = bet2 === col1Based
+          return (
+            <div key={c} className={`w-10 text-center text-xs font-bold
+              ${p1Here && p2Here ? 'text-orange-400' : p1Here ? 'text-red-400' : p2Here ? 'text-yellow-400' : 'text-gray-500'}`}
+              aria-label={`Column ${c + 1}${p1Here && p2Here ? ', bet by Player 1 and Player 2' : p1Here ? ', Player 1 bet' : p2Here ? ', Player 2 bet' : ''}`}
+            >
+              {c + 1}
+            </div>
+          )
+        })}
       </div>
 
       {/* Board frame */}
@@ -616,15 +659,15 @@ Pick only from the available columns listed above.`
           <PlayerSetup
             player={1} model={model1} onModelChange={setModel1}
             instructions={instructions1} onInstructionsChange={setInstructions1}
-            bet={bet1} onBetChange={setBet1}
-            moveBet={moveBet1} onMoveBetChange={setMoveBet1}
+            bet={bet1} onBetChange={setBet1} otherBet={bet2}
+            moveBet={moveBet1} onMoveBetChange={setMoveBet1} otherMoveBet={moveBet2}
             models={models} modelsLoading={modelsLoading}
           />
           <PlayerSetup
             player={2} model={model2} onModelChange={setModel2}
             instructions={instructions2} onInstructionsChange={setInstructions2}
-            bet={bet2} onBetChange={setBet2}
-            moveBet={moveBet2} onMoveBetChange={setMoveBet2}
+            bet={bet2} onBetChange={setBet2} otherBet={bet1}
+            moveBet={moveBet2} onMoveBetChange={setMoveBet2} otherMoveBet={moveBet1}
             models={models} modelsLoading={modelsLoading}
           />
         </div>
@@ -882,7 +925,7 @@ Pick only from the available columns listed above.`
 
         {/* Board — fixed size, centred */}
         <div className="flex-shrink-0 flex flex-col items-center justify-center">
-          <ConnectBoard board={board} lastMove={lastMove} winningCells={winningCells} />
+          <ConnectBoard board={board} lastMove={lastMove} winningCells={winningCells} bet1={bet1} bet2={bet2} />
         </div>
 
         {/* P2 thinking — fills available space */}
