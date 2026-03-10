@@ -342,9 +342,11 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
   }, [thinking])
 
   return (
-    <div className={`rounded-xl overflow-hidden flex flex-col h-full ${isP1
+    <div
+      className={`rounded-xl overflow-hidden flex flex-col h-full ${large ? 'min-h-[350px] max-h-[350px]' : ''} ${isP1
       ? 'bg-gradient-to-br from-red-950/40 to-gray-900/60 border border-red-500/20'
-      : 'bg-gradient-to-br from-yellow-950/40 to-gray-900/60 border border-yellow-500/20'}`}>
+      : 'bg-gradient-to-br from-yellow-950/40 to-gray-900/60 border border-yellow-500/20'}`}
+    >
       <div className={`flex items-center justify-between px-4 py-3 flex-shrink-0 ${isP1 ? 'border-b border-red-500/20 bg-red-950/30' : 'border-b border-yellow-500/20 bg-yellow-950/30'}`}>
         <div className="flex items-center gap-2">
           <span>{isP1 ? '🔴' : '🟡'}</span>
@@ -370,7 +372,7 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
         )}
       </div>
 
-      <div ref={scrollRef} className={`p-3 overflow-y-auto flex-1 ${large ? 'min-h-[300px]' : 'min-h-[100px] max-h-[180px]'}`}>
+      <div ref={scrollRef} className={`p-3 overflow-y-auto flex-1 ${large ? 'min-h-0' : 'min-h-[100px] max-h-[180px]'}`}>
         {isThinking && !thinking && <LoadingDots />}
         {thinking ? (
           <p className="text-gray-300 text-xs whitespace-pre-wrap font-mono leading-relaxed">
