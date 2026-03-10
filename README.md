@@ -58,67 +58,183 @@ OpenRouter API (AI models)
 - Each player's AI instructions are in private `matchPrivate/{matchId}_pN` docs — only readable by the owner and by the Cloud Function
 - Neither player's browser ever sends instructions or the API key to the other player
 
-## Getting Started
+## Required Accounts
 
-### Prerequisites
+You need three free accounts to run open-broccoli:
 
-This project requires a [Firebase](https://firebase.google.com) project.
+| Account | Purpose | Cost |
+|---------|---------|------|
+| **[Google Account](https://accounts.google.com)** | Access Firebase Console (auth, database, functions) | Free |
+| **[GitHub Account](https://github.com)** | Host the frontend on GitHub Pages, run CI/CD | Free |
+| **[OpenRouter Account](https://openrouter.ai)** | Admin API key for AI model access | Free tier + pay-per-use |
 
-### 1. Create a Firebase Project
+> ⚠️ **Firebase Cloud Functions** (needed to run AI server-side) requires the **Blaze (pay-as-you-go)** plan. You are only charged for actual usage — a typical game costs fractions of a cent in Firebase compute. Billing is not required for local development.
 
-1. Go to [Firebase Console](https://console.firebase.google.com) and create a new project
-2. Enable **Authentication** → Sign-in method → **Email/Password**
-3. Create a **Firestore Database** (start in test mode, then apply rules)
-4. Enable **Cloud Functions** (requires Blaze pay-as-you-go plan)
-5. **Project Settings** → **Your apps** → add a Web app → copy the config
+---
 
-### 2. Configure the Frontend
+## Full Deployment Guide
+
+### Step 1 — Fork & Clone
+
+```bash
+# Fork the repo on GitHub, then clone your fork
+git clone https://github.com/<your-username>/open-broccoli.git
+cd open-broccoli
+npm install
+```
+
+---
+
+### Step 2 — Create a Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com) → **Add project**
+2. Give it a name (e.g. `open-broccoli`) and finish the wizard
+3. In the left sidebar, enable these services:
+
+**Authentication**
+- Click **Authentication** → **Get started** → **Sign-in method** tab
+- Enable **Email/Password** and click **Save**
+
+**Firestore**
+- Click **Firestore Database** → **Create database**
+- Choose a region close to your users (e.g. `europe-west1`)
+- Start in **test mode** (you'll apply the security rules in Step 5)
+
+**Cloud Functions**
+- Click **Functions** → **Get started**
+- You will be prompted to **upgrade to the Blaze plan** — follow the link, add a billing account (Google requires a credit card; you won't be charged unless you exceed the generous free tier)
+
+**Web App Config**
+- Click the **⚙ gear icon** → **Project settings** → **Your apps** tab
+- Click the **</>** (Web) icon → register the app (any nickname) → copy the `firebaseConfig` values — you'll need them in Step 3
+
+---
+
+### Step 3 — Configure Environment Variables
 
 ```bash
 cp .env.example .env.local
-# Edit .env.local with your Firebase project values
 ```
 
-### 3. Deploy Cloud Functions
+Edit `.env.local` and fill in the values from the Firebase Web App config:
+
+```env
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+```
+
+> **Never commit `.env.local`** — it is already in `.gitignore`.
+
+---
+
+### Step 4 — Deploy the Backend (Cloud Functions + Firestore Rules)
 
 ```bash
-# Install Firebase CLI if not already installed
+# Install Firebase CLI globally (one-time)
 npm install -g firebase-tools
+
+# Log in with the Google account that owns the Firebase project
 firebase login
 
-# Set your project ID in .firebaserc (copy from .firebaserc.example)
+# Set your Firebase project ID
 cp .firebaserc.example .firebaserc
-# Edit .firebaserc and set your project ID
+# Edit .firebaserc and replace YOUR_FIREBASE_PROJECT_ID with your project ID
 
-# Install function dependencies
+# Install Cloud Function dependencies
 cd functions && npm install && cd ..
 
-# Deploy
-firebase deploy --only functions
+# Deploy functions AND Firestore security rules in one command
+firebase deploy --only functions,firestore:rules
 ```
 
-### 4. Apply Firestore Security Rules
+Expected output:
+```
+✔  Deploy complete!
+  Project Console: https://console.firebase.google.com/project/<your-project-id>
+  Function URL (processAiMove): https://us-central1-<your-project-id>.cloudfunctions.net/processAiMove
+```
+
+> The `processAiMove` function is a **Firestore trigger** — it has no public URL and cannot be called directly. It fires automatically whenever a game move is needed.
+
+---
+
+### Step 5 — Deploy the Frontend to GitHub Pages
+
+The GitHub Actions workflow (`.github/workflows/deploy.yml`) builds and deploys the frontend automatically on every push to `main`. You need to:
+
+**a) Add Firebase config as GitHub Actions secrets**
+
+Go to your GitHub repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** — add each variable:
+
+| Secret name | Value |
+|-------------|-------|
+| `VITE_FIREBASE_API_KEY` | your Firebase API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `your-project-id.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | your project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `your-project-id.appspot.com` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | app ID |
+
+**b) Update the workflow to use the secrets**
+
+Edit `.github/workflows/deploy.yml` — add the environment variables to the **Build** step:
+
+```yaml
+- name: Build
+  run: npm run build
+  env:
+    VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+    VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+    VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+    VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+    VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+    VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+```
+
+**c) Enable GitHub Pages**
+
+Go to your repo → **Settings** → **Pages** → under **Source**, select **GitHub Actions**.
+
+**d) Push to `main` to trigger the deploy**
 
 ```bash
-firebase deploy --only firestore:rules
+git add .github/workflows/deploy.yml
+git commit -m "chore: add Firebase secrets to deploy workflow"
+git push origin main
 ```
 
-Or copy the contents of `firestore.rules` into Firebase Console → Firestore → Rules.
+The Actions tab will show the build and deploy progress. Once done, your app is live at:
+`https://<your-username>.github.io/open-broccoli/`
 
-### 5. Run Locally
+---
+
+### Step 6 — First Login & Admin Setup
+
+1. Open your deployed app and click **Register**
+2. **The very first account registered automatically becomes admin** — use your own email
+3. Log in and click the **⚙** icon in the top-right to open the **Admin Dashboard**
+4. Go to **Settings** and:
+   - Paste your **OpenRouter API key** (get one at [openrouter.ai/keys](https://openrouter.ai/keys)) — this is stored server-side and never exposed to players
+   - Optionally add model IDs (one per line) to restrict which models players can choose — leave blank to allow all models
+5. Click **Save Settings**
+
+You're ready to play! Share the app URL with friends and create your first match.
+
+---
+
+### Local Development
 
 ```bash
 npm install
-npm run dev
+npm run dev    # Frontend dev server with hot reload at http://localhost:5173
+npm run build  # Production build (outputs to dist/)
 ```
 
-### 6. First Login
-
-Register an account — **the first registered user automatically becomes admin**.  
-As admin, go to the **Admin Dashboard** (⚙ button in the header) to:
-- Set your OpenRouter API key (stored server-side, never exposed to players)
-- Configure which models players can choose from (leave empty to allow all)
-- Manage users and view match statistics
+> Local dev requires a real Firebase project (the `.env.local` file). Cloud Functions must already be deployed — they cannot run locally without the Firebase emulators suite.
 
 ## Admin Dashboard
 
