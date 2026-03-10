@@ -644,12 +644,12 @@ Pick only from the available columns listed above.`
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="text-4xl animate-bounce-in">🔴</span>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-              Connect Four
+              Connect 4
             </h1>
             <span className="text-4xl animate-bounce-in" style={{ animationDelay: '0.1s' }}>🟡</span>
           </div>
           <p className="text-gray-400 text-sm max-w-xl mx-auto">
-            Configure two AIs and watch them battle it out on the Connect Four board!
+            Configure two AIs and watch them battle it out on the Connect 4 board!
             Each player instructs their AI on how to play, then let the game begin.
           </p>
         </div>
@@ -913,7 +913,7 @@ Pick only from the available columns listed above.`
         <div className="flex items-center justify-center gap-3 mb-3">
           <span className="text-3xl">🔴</span>
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-            Connect Four
+            Connect 4
           </h1>
           <span className="text-3xl">🟡</span>
         </div>

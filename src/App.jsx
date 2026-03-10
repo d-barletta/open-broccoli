@@ -14,7 +14,7 @@ export default function App() {
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelsError, setModelsError] = useState(null)
   const [showKeyPanel, setShowKeyPanel] = useState(!localStorage.getItem(LS_KEY))
-  const [page, setPage] = useState(PAGES.BATTLE)
+  const [page, setPage] = useState(PAGES.CONNECT_FOUR)
 
   const saveApiKey = useCallback((key) => {
     setApiKey(key)
@@ -86,7 +86,7 @@ export default function App() {
                     : 'bg-gray-800/40 border-gray-700/40 text-gray-500 hover:text-gray-300 hover:border-gray-600'
                   }`}
               >
-                🎮 Connect Four
+                🎮 Connect 4
               </button>
             </nav>
           </div>
