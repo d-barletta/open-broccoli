@@ -11,7 +11,21 @@ const POPULAR_MODELS = [
   'deepseek/deepseek-chat',
 ]
 
+function isModelFree(model) {
+  const p = model.pricing
+  if (!p) return false
+  return (p.prompt === '0' || p.prompt === 0) && (p.completion === '0' || p.completion === 0)
+}
+
+const FILTER_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'free', label: '🆓 Free' },
+  { key: 'paid', label: '💳 Paid' },
+]
+
 export default function ModelSelector({ label, value, onChange, models, loading, side }) {
+  const [filter, setFilter] = useState('all')
+
   const isBlue = side === 'left'
   const accentClass = isBlue
     ? 'border-blue-500/50 focus:border-blue-400 focus:ring-blue-500/20'
@@ -20,21 +34,75 @@ export default function ModelSelector({ label, value, onChange, models, loading,
   const badgeClass = isBlue
     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
     : 'bg-red-500/20 text-red-300 border border-red-500/30'
+  const filterActiveClass = isBlue
+    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+    : 'bg-red-500/20 border-red-500/40 text-red-300'
 
-  const displayModels = models.length > 0 ? models : POPULAR_MODELS.map(id => ({ id, name: id }))
+  const allModels = models.length > 0 ? models : POPULAR_MODELS.map(id => ({ id, name: id }))
 
-  const selectedModel = displayModels.find(m => m.id === value)
+  // Only apply free/paid filter when real models with pricing data are available
+  const hasPricingData = models.length > 0 && models.some(m => m.pricing)
+
+  const displayModels = hasPricingData
+    ? allModels.filter(m => {
+        if (filter === 'free') return isModelFree(m)
+        if (filter === 'paid') return !isModelFree(m)
+        return true
+      })
+    : allModels
+
+  // If the currently selected model was filtered out, pick the first available
+  const effectiveValue = displayModels.find(m => m.id === value)
+    ? value
+    : displayModels[0]?.id ?? value
+
+  // Keep parent state in sync when the selection changes due to filtering
+  useEffect(() => {
+    if (effectiveValue !== value && displayModels.length > 0) {
+      onChange(effectiveValue)
+    }
+  }, [effectiveValue]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedModel = allModels.find(m => m.id === value)
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <span className={`text-xs font-bold uppercase tracking-widest ${labelClass}`}>{label}</span>
         {selectedModel && (
           <span className={`text-xs px-2 py-0.5 rounded-full ${badgeClass}`}>
             {selectedModel.name?.split('/').pop() || value.split('/').pop()}
           </span>
         )}
+        {selectedModel && hasPricingData && (
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${isModelFree(selectedModel) ? 'bg-green-900/40 text-green-400 border-green-500/30' : 'bg-orange-900/40 text-orange-400 border-orange-500/30'}`}>
+            {isModelFree(selectedModel) ? '🆓 Free' : '💳 Paid'}
+          </span>
+        )}
       </div>
+
+      {/* Free / Paid filter — only shown when pricing data is available */}
+      {hasPricingData && (
+        <div className="flex items-center gap-1">
+          {FILTER_OPTIONS.map(opt => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setFilter(opt.key)}
+              className={`text-xs px-2.5 py-1 rounded-lg border transition-all font-medium
+                ${filter === opt.key
+                  ? filterActiveClass
+                  : 'bg-gray-800/40 border-gray-700/40 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <span className="text-xs text-gray-600 ml-1">
+            {displayModels.length} model{displayModels.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <div className={`w-full bg-gray-800/60 border ${accentClass} rounded-lg px-4 py-3 text-gray-500 text-sm`}>
@@ -43,7 +111,7 @@ export default function ModelSelector({ label, value, onChange, models, loading,
       ) : (
         <div className="relative">
           <select
-            value={value}
+            value={effectiveValue}
             onChange={e => onChange(e.target.value)}
             className={`w-full bg-gray-800/60 border ${accentClass} rounded-lg px-4 py-3 text-gray-100 text-sm
               focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all duration-200
