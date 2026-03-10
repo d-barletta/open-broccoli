@@ -115,7 +115,11 @@ function LoadingDots() {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
-function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange, bet, onBetChange, models, modelsLoading }) {
+// Min / max realistic move counts for a Connect Four game
+const MIN_MOVES = 7   // fastest possible win (4 by one player, 3 by the other)
+const MAX_MOVES = 42  // full board (6 × 7)
+
+function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange, bet, onBetChange, moveBet, onMoveBetChange, models, modelsLoading }) {
   const isP1 = player === 1
   return (
     <div className={`rounded-xl overflow-hidden ${isP1
@@ -194,6 +198,70 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
           {bet !== null && (
             <p className={`text-xs mt-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
               Betting on column {bet} 🎯
+            </p>
+          )}
+        </div>
+
+        {/* Move-count bet */}
+        <div>
+          <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
+            🎲 Bet: number of moves?
+          </label>
+          <p className="text-gray-500 text-xs mb-2">
+            Guess how many total moves the game will take ({MIN_MOVES}–{MAX_MOVES}). Closest guess wins!
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = moveBet === null
+                  ? Math.floor((MIN_MOVES + MAX_MOVES) / 2)
+                  : Math.max(MIN_MOVES, moveBet - 1)
+                onMoveBetChange(next)
+              }}
+              className="w-9 h-9 rounded-lg bg-gray-800/60 border border-gray-600/40 text-gray-300
+                hover:border-gray-400/60 hover:text-white active:scale-95 transition-all font-bold text-lg"
+            >−</button>
+            <input
+              type="number"
+              min={MIN_MOVES}
+              max={MAX_MOVES}
+              value={moveBet === null ? '' : moveBet}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10)
+                if (isNaN(v)) { onMoveBetChange(null); return }
+                onMoveBetChange(Math.min(MAX_MOVES, Math.max(MIN_MOVES, v)))
+              }}
+              placeholder="—"
+              className={`w-20 text-center bg-gray-800/60 border rounded-lg px-2 py-2 text-gray-100 text-sm
+                focus:outline-none focus:ring-2 transition-all
+                ${isP1
+                  ? 'border-red-500/40 focus:border-red-400 focus:ring-red-500/20'
+                  : 'border-yellow-500/40 focus:border-yellow-400 focus:ring-yellow-500/20'
+                }`}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const next = moveBet === null ? MIN_MOVES : Math.min(MAX_MOVES, moveBet + 1)
+                onMoveBetChange(next)
+              }}
+              className="w-9 h-9 rounded-lg bg-gray-800/60 border border-gray-600/40 text-gray-300
+                hover:border-gray-400/60 hover:text-white active:scale-95 transition-all font-bold text-lg"
+            >+</button>
+            {moveBet !== null && (
+              <button
+                type="button"
+                onClick={() => onMoveBetChange(null)}
+                className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {moveBet !== null && (
+            <p className={`text-xs mt-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
+              Betting on {moveBet} moves 🎲
             </p>
           )}
         </div>
@@ -326,8 +394,10 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
   const [model2, setModel2] = useState(DEFAULT_MODEL_2)
   const [instructions1, setInstructions1] = useState('')
   const [instructions2, setInstructions2] = useState('')
-  const [bet1, setBet1] = useState(null)   // column 1-7 or null
-  const [bet2, setBet2] = useState(null)   // column 1-7 or null
+  const [bet1, setBet1] = useState(null)      // column 1-7 or null
+  const [bet2, setBet2] = useState(null)      // column 1-7 or null
+  const [moveBet1, setMoveBet1] = useState(null)  // move-count guess or null
+  const [moveBet2, setMoveBet2] = useState(null)  // move-count guess or null
 
   const [board, setBoard] = useState(createBoard)
   const [currentPlayer, setCurrentPlayer] = useState(PLAYER_1)
@@ -393,6 +463,8 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
     setLottieData(null)
     setBet1(null)
     setBet2(null)
+    setMoveBet1(null)
+    setMoveBet2(null)
   }
 
   async function runGame() {
@@ -543,12 +615,14 @@ Pick only from the available columns listed above.`
             player={1} model={model1} onModelChange={setModel1}
             instructions={instructions1} onInstructionsChange={setInstructions1}
             bet={bet1} onBetChange={setBet1}
+            moveBet={moveBet1} onMoveBetChange={setMoveBet1}
             models={models} modelsLoading={modelsLoading}
           />
           <PlayerSetup
             player={2} model={model2} onModelChange={setModel2}
             instructions={instructions2} onInstructionsChange={setInstructions2}
             bet={bet2} onBetChange={setBet2}
+            moveBet={moveBet2} onMoveBetChange={setMoveBet2}
             models={models} modelsLoading={modelsLoading}
           />
         </div>
@@ -640,6 +714,59 @@ Pick only from the available columns listed above.`
                       ) : (
                         <div className="text-xs font-semibold">
                           Wrong — winning col was {winCol}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Move-count Bet Results */}
+        {(moveBet1 !== null || moveBet2 !== null) && (() => {
+          const moveBets = [
+            { label: 'Player 1', emoji: '🔴', bet: moveBet1, isP1: true },
+            { label: 'Player 2', emoji: '🟡', bet: moveBet2, isP1: false },
+          ].filter(b => b.bet !== null)
+
+          // Determine which bet(s) are closest to the actual moveCount
+          if (moveBets.length === 0) return null
+          const diffs = moveBets.map(b => Math.abs(b.bet - moveCount))
+          const minDiff = Math.min(...diffs)
+
+          return (
+            <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-5">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1 text-center">
+                🎲 Move Count Bet Results
+              </h3>
+              <p className="text-center text-xs text-gray-500 mb-4">
+                Actual game length: <span className="text-gray-300 font-bold">{moveCount} moves</span>
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {moveBets.map(({ label, emoji, bet, isP1 }, idx) => {
+                  const diff = diffs[idx]
+                  const isWinner = diff === minDiff
+                  const isTie = moveBets.length === 2 && diffs[0] === diffs[1]
+                  return (
+                    <div key={label} className={`flex-1 rounded-xl px-5 py-4 text-center border transition-all
+                      ${isWinner
+                        ? 'bg-green-900/40 border-green-500/50 text-green-300 shadow-lg shadow-green-900/30'
+                        : 'bg-red-900/30 border-red-600/40 text-red-400'
+                      }`}>
+                      <div className="text-2xl mb-1">{isWinner ? (isTie ? '🤝' : '🏆') : '❌'}</div>
+                      <div className="font-bold text-sm mb-1">{emoji} {label}</div>
+                      <div className="text-xs mb-2 opacity-80">
+                        Guessed <span className="font-bold">{bet}</span> move{bet !== 1 ? 's' : ''}
+                      </div>
+                      {isWinner ? (
+                        <div className="text-sm font-black text-green-300">
+                          {isTie ? 'Tie!' : 'Closest!'} Off by {diff} 🎯
+                        </div>
+                      ) : (
+                        <div className="text-xs font-semibold">
+                          Off by {diff} move{diff !== 1 ? 's' : ''}
                         </div>
                       )}
                     </div>
