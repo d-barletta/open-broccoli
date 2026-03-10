@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const POPULAR_MODELS = [
   'openai/gpt-4o',
