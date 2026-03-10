@@ -115,7 +115,7 @@ function LoadingDots() {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
-function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange, models, modelsLoading }) {
+function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange, bet, onBetChange, models, modelsLoading }) {
   const isP1 = player === 1
   return (
     <div className={`rounded-xl overflow-hidden ${isP1
@@ -156,6 +156,46 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
               placeholder-gray-500 text-sm focus:outline-none focus:border-yellow-500/50
               focus:ring-1 focus:ring-yellow-500/20 transition-all resize-none"
           />
+        </div>
+
+        {/* Bet section */}
+        <div>
+          <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
+            💰 Bet: winning column?
+          </label>
+          <p className="text-gray-500 text-xs mb-2">Pick which column the final winning piece will land in.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: COLS }, (_, i) => i + 1).map(col => (
+              <button
+                key={col}
+                type="button"
+                onClick={() => onBetChange(bet === col ? null : col)}
+                className={`w-9 h-9 rounded-lg font-bold text-sm transition-all active:scale-95
+                  ${bet === col
+                    ? isP1
+                      ? 'bg-red-500 text-white shadow-lg shadow-red-700/40'
+                      : 'bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-600/40'
+                    : 'bg-gray-800/60 border border-gray-600/40 text-gray-400 hover:border-gray-400/60 hover:text-gray-200'
+                  }`}
+              >
+                {col}
+              </button>
+            ))}
+            {bet !== null && (
+              <button
+                type="button"
+                onClick={() => onBetChange(null)}
+                className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {bet !== null && (
+            <p className={`text-xs mt-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
+              Betting on column {bet} 🎯
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -286,6 +326,8 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
   const [model2, setModel2] = useState(DEFAULT_MODEL_2)
   const [instructions1, setInstructions1] = useState('')
   const [instructions2, setInstructions2] = useState('')
+  const [bet1, setBet1] = useState(null)   // column 1-7 or null
+  const [bet2, setBet2] = useState(null)   // column 1-7 or null
 
   const [board, setBoard] = useState(createBoard)
   const [currentPlayer, setCurrentPlayer] = useState(PLAYER_1)
@@ -349,6 +391,8 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
     setLastCol1(null)
     setLastCol2(null)
     setLottieData(null)
+    setBet1(null)
+    setBet2(null)
   }
 
   async function runGame() {
@@ -498,11 +542,13 @@ Pick only from the available columns listed above.`
           <PlayerSetup
             player={1} model={model1} onModelChange={setModel1}
             instructions={instructions1} onInstructionsChange={setInstructions1}
+            bet={bet1} onBetChange={setBet1}
             models={models} modelsLoading={modelsLoading}
           />
           <PlayerSetup
             player={2} model={model2} onModelChange={setModel2}
             instructions={instructions2} onInstructionsChange={setInstructions2}
+            bet={bet2} onBetChange={setBet2}
             models={models} modelsLoading={modelsLoading}
           />
         </div>
@@ -556,6 +602,53 @@ Pick only from the available columns listed above.`
             Game over in {moveCount} moves
           </p>
         </div>
+
+        {/* Bet Results */}
+        {(bet1 !== null || bet2 !== null) && (() => {
+          const winCol = winner !== 'draw' && lastMove ? lastMove.col + 1 : null
+          const bets = [
+            { label: 'Player 1', emoji: '🔴', bet: bet1, isP1: true },
+            { label: 'Player 2', emoji: '🟡', bet: bet2, isP1: false },
+          ].filter(b => b.bet !== null)
+
+          return (
+            <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-5">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 text-center">
+                💰 Bet Results
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {bets.map(({ label, emoji, bet, isP1 }) => {
+                  const isVoid = winCol === null
+                  const isWin = !isVoid && bet === winCol
+                  return (
+                    <div key={label} className={`flex-1 rounded-xl px-5 py-4 text-center border transition-all
+                      ${isVoid
+                        ? 'bg-gray-800/60 border-gray-600/40 text-gray-400'
+                        : isWin
+                          ? 'bg-green-900/40 border-green-500/50 text-green-300 shadow-lg shadow-green-900/30'
+                          : 'bg-red-900/30 border-red-600/40 text-red-400'
+                      }`}>
+                      <div className="text-2xl mb-1">{isVoid ? '🤷' : isWin ? '🎉' : '❌'}</div>
+                      <div className="font-bold text-sm mb-1">{emoji} {label}</div>
+                      <div className="text-xs mb-2 opacity-80">Bet on column <span className="font-bold">{bet}</span></div>
+                      {isVoid ? (
+                        <div className="text-xs font-semibold">Void — it's a draw</div>
+                      ) : isWin ? (
+                        <div className="text-sm font-black text-green-300">
+                          Correct! Winning col was {winCol} 🎯
+                        </div>
+                      ) : (
+                        <div className="text-xs font-semibold">
+                          Wrong — winning col was {winCol}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Lottie celebration */}
         {lottieData && winner !== 'draw' && (
