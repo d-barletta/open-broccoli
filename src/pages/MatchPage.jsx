@@ -439,7 +439,8 @@ export default function MatchPage() {
     if (gs.winner !== null) return
     if (gs.currentPlayer !== myPlayerNum) return
     if (gs.isThinking) return
-
+    // Claim the turn immediately to prevent concurrent execution
+    if (gameRunning.current) return
     gameRunning.current = true
     const board = gs.board
     const validCols = Array.from({ length: COLS }, (_, i) => i).filter(c => board[0][c] === 0).map(c => c + 1)
@@ -498,7 +499,7 @@ Pick only from the available columns listed above.`
     const col = pickValidColumn(board, rawCol)
 
     if (col === -1) {
-      // No valid column - draw
+      // Board is completely full — genuine draw (pickValidColumn already tried all columns)
       const thinkingKey = `player${myPlayerNum}LastThinking`
       await updateGameState(matchId, { winner: 'draw', isThinking: false, thinkingPlayer: null, [thinkingKey]: fullResponse })
       await finishMatch(matchId, { winner: 'draw', winnerUsername: null, moveCount: gs.moveCount })
@@ -642,7 +643,9 @@ Pick only from the available columns listed above.`
   }
 
   function copyMatchLink() {
-    const url = `${window.location.origin}${window.location.pathname.includes('/open-broccoli/') ? '/open-broccoli/' : '/'}#/match/${matchId}`
+    // Use Vite's BASE_URL (set in vite.config.js) for reliable path detection
+    const base = import.meta.env.BASE_URL || '/'
+    const url = `${window.location.origin}${base}#/match/${matchId}`
     navigator.clipboard.writeText(url).then(() => {
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)

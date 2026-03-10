@@ -13,9 +13,18 @@ function generateMatchId() {
   return result
 }
 
+async function generateUniqueMatchId(maxRetries = 5) {
+  for (let i = 0; i < maxRetries; i++) {
+    const id = generateMatchId()
+    const snap = await getDoc(doc(db, 'matches', id))
+    if (!snap.exists()) return id
+  }
+  throw new Error('Failed to generate a unique match ID. Please try again.')
+}
+
 // ─── Matches ──────────────────────────────────────────────────────────────────
 export async function createMatch(player1Uid, player1Username) {
-  const matchId = generateMatchId()
+  const matchId = await generateUniqueMatchId()
   const matchRef = doc(db, 'matches', matchId)
   await setDoc(matchRef, {
     id: matchId,

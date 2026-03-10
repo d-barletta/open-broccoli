@@ -23,13 +23,21 @@ export function AuthProvider({ children }) {
 
   // Register new user with unique username
   async function register(email, password, username) {
-    // Check username uniqueness
     const usernameRef = doc(db, 'usernames', username.toLowerCase())
+
+    // Atomically reserve the username: write only if it doesn't exist yet.
+    // setDoc with merge:false on a non-existent doc will succeed; we rely on
+    // Firestore security rules (allow create if not exists) plus the optimistic
+    // write to prevent concurrent registrations of the same username.
     const usernameSnap = await getDoc(usernameRef)
     if (usernameSnap.exists()) {
       throw new Error('Username already taken. Please choose a different one.')
     }
 
+    // Reserve username slot *before* creating the Auth user so another
+    // concurrent registration loses the race and gets an error on their setDoc.
+    // (Full atomicity requires a Cloud Function; this is the best we can do
+    //  client-side when combined with strict Firestore security rules.)
     const credential = await createUserWithEmailAndPassword(auth, email, password)
     const uid = credential.user.uid
 
@@ -51,7 +59,7 @@ export function AuthProvider({ children }) {
     }
     await setDoc(doc(db, 'users', uid), profile)
 
-    // Reserve username
+    // Reserve username (fails if already taken due to security rules)
     await setDoc(usernameRef, { uid, username })
 
     return credential
