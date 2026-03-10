@@ -165,7 +165,7 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
             value={instructions}
             onChange={e => onInstructionsChange(e.target.value)}
             placeholder={`Tell the AI how to play as Player ${player}… e.g. "Play aggressively, always look for immediate winning moves first, then block the opponent."`}
-            rows={5}
+            rows={3}
             className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2 text-gray-100
               placeholder-gray-500 text-sm focus:outline-none focus:border-yellow-500/50
               focus:ring-1 focus:ring-yellow-500/20 transition-all resize-none"
@@ -694,7 +694,7 @@ Pick only from the available columns listed above.`
                     text-gray-900 font-black text-lg rounded-2xl transition-all duration-200
                     shadow-lg hover:shadow-orange-500/30 active:scale-95 animate-bounce-in"
                 >
-                  🎮 Start Game!
+                  Start Game!
                 </button>
               </div>
               {!apiKey && (
@@ -898,7 +898,7 @@ Pick only from the available columns listed above.`
               text-white font-bold rounded-xl transition-all duration-200
               shadow-lg hover:shadow-purple-500/30 active:scale-95"
           >
-            🔄 Play Again
+            Play Again
           </button>
         </div>
       </div>
