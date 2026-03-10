@@ -730,37 +730,63 @@ Pick only from the available columns listed above.`
             { label: 'Player 2', emoji: '🟡', bet: bet2, isP1: false },
           ].filter(b => b.bet !== null)
 
+          if (bets.length === 0) return null
+
+          // Closest-column logic (same approach as move-count)
+          const diffs = bets.map(b => winCol !== null ? Math.abs(b.bet - winCol) : null)
+          const minDiff = winCol !== null ? Math.min(...diffs) : null
+
           return (
             <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-5">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 text-center">
-                💰 Bet Results
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1 text-center">
+                💰 Winning Column Bet Results
               </h3>
+              <p className="text-center text-xs text-gray-500 mb-4">
+                {winCol !== null
+                  ? <>Winning column: <span className="text-gray-300 font-bold">col {winCol}</span></>
+                  : 'Draw — no winning column'}
+              </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                {bets.map(({ label, emoji, bet, isP1 }) => {
+                  {bets.map(({ label, emoji, bet }, idx) => {
                   const isVoid = winCol === null
-                  const isWin = !isVoid && bet === winCol
+                  const diff = isVoid ? null : diffs[idx]
+                  const isWinner = !isVoid && diff === minDiff
+                  const isTie = !isVoid && bets.length === 2 && diffs[0] === diffs[1]
+                  const isExact = !isVoid && diff === 0
+
+                  let cardIcon, resultText
+                  if (isVoid) {
+                    cardIcon = '🤷'
+                    resultText = <div className="text-xs font-semibold">Void — it&apos;s a draw</div>
+                  } else if (isWinner) {
+                    cardIcon = isTie ? '🤝' : isExact ? '🎉' : '🏆'
+                    const label2 = isTie ? 'Tie!' : isExact ? 'Exact!' : 'Closest!'
+                    resultText = (
+                      <div className="text-sm font-black text-green-300">
+                        {label2} {isExact ? '🎯' : `Off by ${diff}`}
+                      </div>
+                    )
+                  } else {
+                    cardIcon = '❌'
+                    resultText = (
+                      <div className="text-xs font-semibold">
+                        Off by {diff} col{diff !== 1 ? 's' : ''}
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={label} className={`flex-1 rounded-xl px-5 py-4 text-center border transition-all
                       ${isVoid
                         ? 'bg-gray-800/60 border-gray-600/40 text-gray-400'
-                        : isWin
+                        : isWinner
                           ? 'bg-green-900/40 border-green-500/50 text-green-300 shadow-lg shadow-green-900/30'
                           : 'bg-red-900/30 border-red-600/40 text-red-400'
                       }`}>
-                      <div className="text-2xl mb-1">{isVoid ? '🤷' : isWin ? '🎉' : '❌'}</div>
+                      <div className="text-2xl mb-1">{cardIcon}</div>
                       <div className="font-bold text-sm mb-1">{emoji} {label}</div>
                       <div className="text-xs mb-2 opacity-80">Bet on column <span className="font-bold">{bet}</span></div>
-                      {isVoid ? (
-                        <div className="text-xs font-semibold">Void — it's a draw</div>
-                      ) : isWin ? (
-                        <div className="text-sm font-black text-green-300">
-                          Correct! Winning col was {winCol} 🎯
-                        </div>
-                      ) : (
-                        <div className="text-xs font-semibold">
-                          Wrong — winning col was {winCol}
-                        </div>
-                      )}
+                      {resultText}
                     </div>
                   )
                 })}
