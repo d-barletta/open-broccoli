@@ -225,7 +225,7 @@ function ConnectBoard({ board, lastMove, winningCells }) {
   )
 }
 
-function ThinkingPanel({ player, model, thinking, isThinking, lastCol }) {
+function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) {
   const isP1 = player === PLAYER_1
   const scrollRef = useRef(null)
 
@@ -234,10 +234,10 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol }) {
   }, [thinking])
 
   return (
-    <div className={`rounded-xl overflow-hidden ${isP1
+    <div className={`rounded-xl overflow-hidden flex flex-col h-full ${isP1
       ? 'bg-gradient-to-br from-red-950/40 to-gray-900/60 border border-red-500/20'
       : 'bg-gradient-to-br from-yellow-950/40 to-gray-900/60 border border-yellow-500/20'}`}>
-      <div className={`flex items-center justify-between px-4 py-3 ${isP1 ? 'border-b border-red-500/20 bg-red-950/30' : 'border-b border-yellow-500/20 bg-yellow-950/30'}`}>
+      <div className={`flex items-center justify-between px-4 py-3 flex-shrink-0 ${isP1 ? 'border-b border-red-500/20 bg-red-950/30' : 'border-b border-yellow-500/20 bg-yellow-950/30'}`}>
         <div className="flex items-center gap-2">
           <span>{isP1 ? '🔴' : '🟡'}</span>
           <div>
@@ -262,7 +262,7 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol }) {
         )}
       </div>
 
-      <div ref={scrollRef} className="p-3 min-h-[100px] max-h-[180px] overflow-y-auto">
+      <div ref={scrollRef} className={`p-3 overflow-y-auto flex-1 ${large ? 'min-h-[300px]' : 'min-h-[100px] max-h-[180px]'}`}>
         {isThinking && !thinking && <LoadingDots />}
         {thinking ? (
           <p className="text-gray-300 text-xs whitespace-pre-wrap font-mono leading-relaxed">
@@ -301,9 +301,16 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
   const [lastCol1, setLastCol1] = useState(null)
   const [lastCol2, setLastCol2] = useState(null)
   const [lottieData, setLottieData] = useState(null)
+  const [paused, setPaused] = useState(false)
 
   const gameRunning = useRef(false)
+  const pausedRef = useRef(false)
   const logRef = useRef(null)
+
+  // Keep pausedRef in sync with paused state so the async game loop can read it
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
 
   // Fetch Lottie animation when game ends
   useEffect(() => {
@@ -319,8 +326,14 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [gameLog])
 
+  function togglePause() {
+    setPaused(v => !v)
+  }
+
   function resetGame() {
     gameRunning.current = false
+    pausedRef.current = false
+    setPaused(false)
     setPhase(PHASES.SETUP)
     setBoard(createBoard())
     setCurrentPlayer(PLAYER_1)
@@ -343,6 +356,8 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
 
     setPhase(PHASES.PLAYING)
     gameRunning.current = true
+    pausedRef.current = false
+    setPaused(false)
     setError(null)
 
     let curBoard = createBoard()
@@ -351,6 +366,12 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
     let moveNum = 0
 
     while (gameRunning.current) {
+      // Wait here if the game is paused (poll every 250ms)
+      while (pausedRef.current && gameRunning.current) {
+        await new Promise(res => setTimeout(res, 250))
+      }
+      if (!gameRunning.current) break
+
       const isP1 = player === PLAYER_1
       const model = isP1 ? model1 : model2
       const instructions = isP1 ? instructions1 : instructions2
@@ -584,10 +605,10 @@ Pick only from the available columns listed above.`
 
   // ── PLAYING PHASE ──────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto px-4 pb-12">
+    <div className="flex flex-col gap-4 w-full px-4 pb-12">
       {/* Header */}
       <div className="text-center pt-6 pb-1">
-        <div className="flex items-center justify-center gap-3 mb-2">
+        <div className="flex items-center justify-center gap-3 mb-3">
           <span className="text-3xl">🔴</span>
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
             Connect Four
@@ -595,54 +616,74 @@ Pick only from the available columns listed above.`
           <span className="text-3xl">🟡</span>
         </div>
 
-        {/* Turn indicator */}
-        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border font-bold text-sm
-          ${currentPlayer === PLAYER_1
-            ? 'bg-red-500/20 border-red-500/40 text-red-300 animate-pulse'
-            : 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 animate-pulse'}`}>
-          {currentPlayer === PLAYER_1 ? '🔴' : '🟡'}
-          {isThinking ? ` Player ${currentPlayer} is thinking…` : ` Player ${currentPlayer}'s turn`}
-          {` · Move ${moveCount + 1}`}
+        {/* Turn indicator + Pause button */}
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border font-bold text-sm
+            ${paused
+              ? 'bg-gray-700/40 border-gray-500/40 text-gray-400'
+              : currentPlayer === PLAYER_1
+                ? 'bg-red-500/20 border-red-500/40 text-red-300 animate-pulse'
+                : 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 animate-pulse'}`}>
+            {paused ? '⏸' : (currentPlayer === PLAYER_1 ? '🔴' : '🟡')}
+            {paused
+              ? ' Game paused'
+              : isThinking
+                ? ` Player ${currentPlayer} is thinking…`
+                : ` Player ${currentPlayer}'s turn`}
+            {!paused && ` · Move ${moveCount + 1}`}
+          </div>
+
+          <button
+            onClick={togglePause}
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border font-bold text-sm transition-all active:scale-95
+              ${paused
+                ? 'bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30'
+                : 'bg-gray-700/40 border-gray-500/40 text-gray-300 hover:bg-gray-600/40'}`}
+          >
+            {paused ? '▶ Resume' : '⏸ Pause'}
+          </button>
         </div>
       </div>
 
-      {/* Board + thinking panels */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start justify-center">
-        {/* P1 thinking */}
-        <div className="w-full lg:w-64 flex-shrink-0">
+      {/* Full-width: P1 panel | Board | P2 panel */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch w-full max-w-[1400px] mx-auto">
+        {/* P1 thinking — fills available space */}
+        <div className="flex-1 min-w-0">
           <ThinkingPanel
             player={PLAYER_1} model={model1}
             thinking={thinking1}
             isThinking={isThinking && currentPlayer === PLAYER_1}
             lastCol={lastCol1}
+            large
           />
         </div>
 
-        {/* Board */}
-        <div className="flex-shrink-0">
+        {/* Board — fixed size, centred */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center">
           <ConnectBoard board={board} lastMove={lastMove} winningCells={winningCells} />
         </div>
 
-        {/* P2 thinking */}
-        <div className="w-full lg:w-64 flex-shrink-0">
+        {/* P2 thinking — fills available space */}
+        <div className="flex-1 min-w-0">
           <ThinkingPanel
             player={PLAYER_2} model={model2}
             thinking={thinking2}
             isThinking={isThinking && currentPlayer === PLAYER_2}
             lastCol={lastCol2}
+            large
           />
         </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-950/50 border border-red-500/40 rounded-lg px-4 py-3 text-red-300 text-sm flex gap-2">
+        <div className="bg-red-950/50 border border-red-500/40 rounded-lg px-4 py-3 text-red-300 text-sm flex gap-2 max-w-[1400px] mx-auto w-full">
           <span>⚠</span><span>{error}</span>
         </div>
       )}
 
       {/* Game log */}
-      <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4">
+      <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4 max-w-[1400px] mx-auto w-full">
         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
           Game Log · {moveCount} moves
         </h3>
