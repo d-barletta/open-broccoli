@@ -680,23 +680,34 @@ Pick only from the available columns listed above.`
         )}
 
         {/* Start button */}
-        <div className="flex justify-center">
-          <button
-            onClick={runGame}
-            disabled={!apiKey}
-            className="px-10 py-4 bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400
-              hover:from-red-400 hover:via-orange-300 hover:to-yellow-300
-              disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed
-              text-gray-900 font-black text-lg rounded-2xl transition-all duration-200
-              shadow-lg hover:shadow-orange-500/30 active:scale-95 animate-bounce-in"
-          >
-            🎮 Start Game!
-          </button>
-        </div>
-
-        {!apiKey && (
-          <p className="text-center text-yellow-500/70 text-xs">⚠ Enter your OpenRouter API key in the header to start</p>
-        )}
+        {(() => {
+          const allBetsPlaced = bet1 !== null && bet2 !== null && moveBet1 !== null && moveBet2 !== null
+          return (
+            <>
+              <div className="flex justify-center">
+                <button
+                  onClick={runGame}
+                  disabled={!apiKey || !allBetsPlaced}
+                  className="px-10 py-4 bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400
+                    hover:from-red-400 hover:via-orange-300 hover:to-yellow-300
+                    disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed
+                    text-gray-900 font-black text-lg rounded-2xl transition-all duration-200
+                    shadow-lg hover:shadow-orange-500/30 active:scale-95 animate-bounce-in"
+                >
+                  🎮 Start Game!
+                </button>
+              </div>
+              {!apiKey && (
+                <p className="text-center text-yellow-500/70 text-xs">⚠ Enter your OpenRouter API key in the header to start</p>
+              )}
+              {apiKey && !allBetsPlaced && (
+                <p className="text-center text-yellow-500/70 text-xs">
+                  ⚠ Both players must place a <strong>column bet</strong> and a <strong>move-count bet</strong> to start
+                </p>
+              )}
+            </>
+          )
+        })()}
       </div>
     )
   }
