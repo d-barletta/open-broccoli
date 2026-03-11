@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isNotBanned() {
+      return !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Username registry ─────────────────────────────────────────────────
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Admin settings ────────────────────────────────────────────────────
+    // public — available model list; readable by all authenticated users
+    // secret — OpenRouter API key; readable ONLY by admins in the browser.
+    //          The Cloud Function uses the Admin SDK which bypasses these rules.
+    match /adminSettings/public {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /adminSettings/secret {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── Matches ───────────────────────────────────────────────────────────
+    match /matches/{matchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isNotBanned();
+      allow update: if isAuthenticated() && (
+        resource.data.player1Uid == request.auth.uid ||
+        resource.data.player2Uid == request.auth.uid ||
+        resource.data.player2Uid == null
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Private player configs ────────────────────────────────────────────
+    // Each player can only read/write their own doc. The server-side AI backend
+    // reads these via Admin SDK (bypasses rules) to build the AI prompt.
+    match /matchPrivate/{docId} {
+      allow read: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ── Game state ────────────────────────────────────────────────────────
+    // All authenticated users can read (spectators too).
+    // Only Player 1 can create the initial doc. All subsequent updates are
+    // made by the server-side AI backend using the Firebase Admin SDK
+    // (Admin SDK bypasses Firestore security rules):
+    //   - Vercel: api/ai-move.js (default)
+    //   - Firebase CF: functions/index.js (alternative)
+    match /gameState/{matchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        get(/databases/$(database)/documents/matches/$(matchId)).data.player1Uid == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+  }
+}
