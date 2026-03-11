@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import Lottie from 'lottie-react'
 import ModelSelector from './ModelSelector'
 import { streamChatCompletion } from '../services/openrouter'
@@ -130,6 +131,7 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
   bet, onBetChange, otherBet,
   moveBet, onMoveBetChange, otherMoveBet,
   models, modelsLoading }) {
+  const { t } = useTranslation()
   const isP1 = player === 1
   return (
     <div className={`rounded-xl overflow-hidden ${isP1
@@ -140,16 +142,16 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
           <span className="text-xl">{isP1 ? '🔴' : '🟡'}</span>
           <div>
             <div className={`font-bold text-sm ${isP1 ? 'text-red-300' : 'text-yellow-300'}`}>
-              Player {player}
+              {player === 1 ? t('common.player1') : t('common.player2')}
             </div>
-            <div className="text-gray-500 text-xs">Configure your AI</div>
+            <div className="text-gray-500 text-xs">{t('game.configureAI')}</div>
           </div>
         </div>
       </div>
 
       <div className="p-4 flex flex-col gap-4">
         <ModelSelector
-          label="🤖 Model"
+          label={t('game.modelLabel')}
           value={model}
           onChange={onModelChange}
           models={models}
@@ -159,12 +161,12 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
 
         <div>
           <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
-            Instructions for the AI
+            {t('game.instructionsLabel')}
           </label>
           <textarea
             value={instructions}
             onChange={e => onInstructionsChange(e.target.value)}
-            placeholder={`Tell the AI how to play as Player ${player}… e.g. "Play aggressively, always look for immediate winning moves first, then block the opponent."`}
+            placeholder={t('game.instructionsPlaceholder', { player })}
             rows={3}
             className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2 text-gray-100
               placeholder-gray-500 text-sm focus:outline-none focus:border-yellow-500/50
@@ -175,9 +177,9 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
         {/* Bet section */}
         <div>
           <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
-            💰 Bet: winning column?
+            {t('game.betColumnLabel')}
           </label>
-          <p className="text-gray-500 text-xs mb-2">Pick which column the final winning piece will land in.</p>
+          <p className="text-gray-500 text-xs mb-2">{t('game.betColumnDesc')}</p>
           <div className="flex flex-wrap gap-1.5">
             {Array.from({ length: COLS }, (_, i) => i + 1).map(col => {
               const isMine = bet === col
@@ -209,13 +211,13 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
                 onClick={() => onBetChange(null)}
                 className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all"
               >
-                Clear
+                {t('common.clear')}
               </button>
             )}
           </div>
           {bet !== null && (
             <p className={`text-xs mt-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
-              Betting on column {bet} 🎯
+              {t('game.bettingOnColumn', { col: bet })}
             </p>
           )}
         </div>
@@ -223,10 +225,10 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
         {/* Move-count bet */}
         <div>
           <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
-            🎲 Bet: number of moves?
+            {t('game.betMovesLabel')}
           </label>
           <p className="text-gray-500 text-xs mb-2">
-            Guess how many total moves the game will take ({MIN_MOVES}–{MAX_MOVES}). Closest guess wins!
+            {t('game.betMovesDesc', { min: MIN_MOVES, max: MAX_MOVES })}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -251,10 +253,10 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
                   : 'border-yellow-500/40 focus:border-yellow-400 focus:ring-yellow-500/20'
                 }`}
             >
-              <option value="">— pick —</option>
+              <option value="">{t('game.pickLabel')}</option>
               {Array.from({ length: MAX_MOVES - MIN_MOVES + 1 }, (_, i) => i + MIN_MOVES).map(n => (
                 <option key={n} value={n} disabled={n === otherMoveBet}>
-                  {n}{n === otherMoveBet ? ' (taken)' : ''}
+                  {n}{n === otherMoveBet ? ` ${t('game.taken')}` : ''}
                 </option>
               ))}
             </select>
@@ -273,13 +275,13 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
                 onClick={() => onMoveBetChange(null)}
                 className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all"
               >
-                Clear
+                {t('common.clear')}
               </button>
             )}
           </div>
           {moveBet !== null && (
             <p className={`text-xs mt-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
-              Betting on {moveBet} moves 🎲
+              {t('game.bettingOnMoves', { count: moveBet })}
             </p>
           )}
         </div>
@@ -379,6 +381,7 @@ function ConnectBoard({ board, lastMove, winningCells, bet1 = null, bet2 = null 
 function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) {
   const isP1 = player === PLAYER_1
   const scrollRef = useRef(null)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -395,7 +398,7 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
           <span>{isP1 ? '🔴' : '🟡'}</span>
           <div>
             <div className={`font-bold text-sm ${isP1 ? 'text-red-300' : 'text-yellow-300'}`}>
-              Player {player}
+              {player === PLAYER_1 ? t('common.player1') : t('common.player2')}
             </div>
             <div className="text-gray-500 text-xs truncate max-w-[130px]">{model}</div>
           </div>
@@ -404,13 +407,13 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
         {isThinking && (
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium animate-pulse
             ${isP1 ? 'bg-red-500/20 text-red-300 border-red-400/50' : 'bg-yellow-500/20 text-yellow-300 border-yellow-400/50'}`}>
-            Thinking…
+            {t('game.thinking')}
           </span>
         )}
         {lastCol !== null && !isThinking && (
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
             ${isP1 ? 'bg-red-900/40 text-red-400 border-red-500/30' : 'bg-yellow-900/40 text-yellow-400 border-yellow-500/30'}`}>
-            Played col {lastCol + 1}
+            {t('game.playedCol', { col: lastCol + 1 })}
           </span>
         )}
       </div>
@@ -424,7 +427,7 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
           </p>
         ) : !isThinking && (
           <div className="flex items-center justify-center h-full min-h-[60px] text-gray-600 text-xs">
-            Waiting for turn…
+            {t('game.waitingForTurn')}
           </div>
         )}
       </div>
@@ -434,6 +437,7 @@ function ThinkingPanel({ player, model, thinking, isThinking, lastCol, large }) 
 
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
+  const { t } = useTranslation()
   const [phase, setPhase] = useState(PHASES.SETUP)
   const [model1, setModel1] = useState(DEFAULT_MODEL_1)
   const [model2, setModel2] = useState(DEFAULT_MODEL_2)
@@ -513,7 +517,7 @@ export default function ConnectFourGame({ apiKey, models, modelsLoading }) {
   }
 
   async function runGame() {
-    if (!apiKey) { setError('Please set your OpenRouter API key first.'); return }
+    if (!apiKey) { setError(t('game.apiKeyRequired')); return }
 
     setPhase(PHASES.PLAYING)
     gameRunning.current = true
@@ -644,13 +648,12 @@ Pick only from the available columns listed above.`
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="text-4xl animate-bounce-in">🔴</span>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-              Connect 4
+              {t('game.title')}
             </h1>
             <span className="text-4xl animate-bounce-in" style={{ animationDelay: '0.1s' }}>🟡</span>
           </div>
           <p className="text-gray-400 text-sm max-w-xl mx-auto">
-            Configure two AIs and watch them battle it out on the Connect 4 board!
-            Each player instructs their AI on how to play, then let the game begin.
+            {t('game.setupDesc')}
           </p>
         </div>
 
@@ -694,15 +697,15 @@ Pick only from the available columns listed above.`
                     text-gray-900 font-black text-lg rounded-2xl transition-all duration-200
                     shadow-lg hover:shadow-orange-500/30 active:scale-95 animate-bounce-in"
                 >
-                  Start Game!
+                  {t('game.startGame')}
                 </button>
               </div>
               {!apiKey && (
-                <p className="text-center text-yellow-500/70 text-xs">⚠ Enter your OpenRouter API key in the header to start</p>
+                <p className="text-center text-yellow-500/70 text-xs">{t('game.noApiKeyWarn')}</p>
               )}
               {apiKey && !allBetsPlaced && (
                 <p className="text-center text-yellow-500/70 text-xs">
-                  ⚠ Both players must place a <strong>column bet</strong> and a <strong>move-count bet</strong> to start
+                  {t('game.placeBetsWarn')}
                 </p>
               )}
             </>
@@ -726,10 +729,10 @@ Pick only from the available columns listed above.`
         {/* Winner banner */}
         <div className="text-center pt-8">
           <div className={`inline-block text-5xl md:text-7xl font-black tracking-tight bg-gradient-to-r ${winnerColor} bg-clip-text text-transparent animate-bounce-in`}>
-            {winner === 'draw' ? "It's a Draw! 🤝" : `${winnerName} Wins!`}
+            {winner === 'draw' ? t('game.itsADraw') : t('game.playerWins', { player: winnerName })}
           </div>
           <p className="text-gray-400 text-sm mt-3">
-            Game over in {moveCount} moves
+            {t('game.gameOverMoves', { count: moveCount })}
           </p>
         </div>
 
@@ -737,8 +740,8 @@ Pick only from the available columns listed above.`
         {(bet1 !== null || bet2 !== null) && (() => {
           const winCol = winner !== 'draw' && lastMove ? lastMove.col + 1 : null
           const bets = [
-            { label: 'Player 1', emoji: '🔴', bet: bet1, isP1: true },
-            { label: 'Player 2', emoji: '🟡', bet: bet2, isP1: false },
+            { label: t('common.player1'), emoji: '🔴', bet: bet1, isP1: true },
+            { label: t('common.player2'), emoji: '🟡', bet: bet2, isP1: false },
           ].filter(b => b.bet !== null)
 
           if (bets.length === 0) return null
@@ -750,12 +753,12 @@ Pick only from the available columns listed above.`
           return (
             <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1 text-center">
-                💰 Winning Column Bet Results
+                {t('game.winningColumnBets')}
               </h3>
               <p className="text-center text-xs text-gray-500 mb-4">
                 {winCol !== null
-                  ? <>Winning column: <span className="text-gray-300 font-bold">col {winCol}</span></>
-                  : 'Draw — no winning column'}
+                  ? <>{t('game.winningColumn', { col: winCol })}</>
+                  : t('game.drawNoColumn')}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   {bets.map(({ label, emoji, bet }, idx) => {
@@ -768,20 +771,20 @@ Pick only from the available columns listed above.`
                   let cardIcon, resultText
                   if (isVoid) {
                     cardIcon = '🤷'
-                    resultText = <div className="text-xs font-semibold">Void — it&apos;s a draw</div>
+                    resultText = <div className="text-xs font-semibold">{t('game.voidDraw')}</div>
                   } else if (isWinner) {
                     cardIcon = isTie ? '🤝' : isExact ? '🎉' : '🏆'
-                    const label2 = isTie ? 'Tie!' : isExact ? 'Exact!' : 'Closest!'
+                    const label2 = isTie ? t('game.tie') : isExact ? t('game.exact') : t('game.closest')
                     resultText = (
                       <div className="text-sm font-black text-green-300">
-                        {label2} {isExact ? '🎯' : `Off by ${diff}`}
+                        {label2}{!isExact && ` ${t('game.offByCols', { count: diff })}`}
                       </div>
                     )
                   } else {
                     cardIcon = '❌'
                     resultText = (
                       <div className="text-xs font-semibold">
-                        Off by {diff} col{diff !== 1 ? 's' : ''}
+                        {t('game.offByCols', { count: diff })}
                       </div>
                     )
                   }
@@ -796,7 +799,7 @@ Pick only from the available columns listed above.`
                       }`}>
                       <div className="text-2xl mb-1">{cardIcon}</div>
                       <div className="font-bold text-sm mb-1">{emoji} {label}</div>
-                      <div className="text-xs mb-2 opacity-80">Bet on column <span className="font-bold">{bet}</span></div>
+                      <div className="text-xs mb-2 opacity-80">{t('game.betOnColumn', { col: bet })}</div>
                       {resultText}
                     </div>
                   )
@@ -809,8 +812,8 @@ Pick only from the available columns listed above.`
         {/* Move-count Bet Results */}
         {(moveBet1 !== null || moveBet2 !== null) && (() => {
           const moveBets = [
-            { label: 'Player 1', emoji: '🔴', bet: moveBet1, isP1: true },
-            { label: 'Player 2', emoji: '🟡', bet: moveBet2, isP1: false },
+            { label: t('common.player1'), emoji: '🔴', bet: moveBet1, isP1: true },
+            { label: t('common.player2'), emoji: '🟡', bet: moveBet2, isP1: false },
           ].filter(b => b.bet !== null)
 
           // Determine which bet(s) are closest to the actual moveCount
@@ -821,10 +824,10 @@ Pick only from the available columns listed above.`
           return (
             <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1 text-center">
-                🎲 Move Count Bet Results
+                {t('game.moveCountBets')}
               </h3>
               <p className="text-center text-xs text-gray-500 mb-4">
-                Actual game length: <span className="text-gray-300 font-bold">{moveCount} moves</span>
+                {t('game.actualMoves', { count: moveCount })}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {moveBets.map(({ label, emoji, bet, isP1 }, idx) => {
@@ -840,15 +843,15 @@ Pick only from the available columns listed above.`
                       <div className="text-2xl mb-1">{isWinner ? (isTie ? '🤝' : '🏆') : '❌'}</div>
                       <div className="font-bold text-sm mb-1">{emoji} {label}</div>
                       <div className="text-xs mb-2 opacity-80">
-                        Guessed <span className="font-bold">{bet}</span> move{bet !== 1 ? 's' : ''}
+                        {t('game.guessedMoves', { count: bet })}
                       </div>
                       {isWinner ? (
                         <div className="text-sm font-black text-green-300">
-                          {isTie ? 'Tie!' : 'Closest!'} Off by {diff} 🎯
+                          {isTie ? `${t('game.tie')} ${t('game.offBy', { count: diff })} 🎯` : t('game.closestOffBy', { count: diff })}
                         </div>
                       ) : (
                         <div className="text-xs font-semibold">
-                          Off by {diff} move{diff !== 1 ? 's' : ''}
+                          {t('game.offByMoves', { count: diff })}
                         </div>
                       )}
                     </div>
@@ -881,7 +884,7 @@ Pick only from the available columns listed above.`
 
         {/* Game log */}
         <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Game Log</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">{t('game.gameLog')}</h3>
           <div ref={logRef} className="max-h-40 overflow-y-auto space-y-0.5">
             {gameLog.map((entry, i) => (
               <div key={i} className="text-xs text-gray-400 font-mono">{entry}</div>
@@ -898,7 +901,7 @@ Pick only from the available columns listed above.`
               text-white font-bold rounded-xl transition-all duration-200
               shadow-lg hover:shadow-purple-500/30 active:scale-95"
           >
-            Play Again
+            {t('game.playAgain')}
           </button>
         </div>
       </div>
@@ -913,7 +916,7 @@ Pick only from the available columns listed above.`
         <div className="flex items-center justify-center gap-3 mb-3">
           <span className="text-3xl">🔴</span>
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-            Connect 4
+            {t('game.title')}
           </h1>
           <span className="text-3xl">🟡</span>
         </div>
@@ -928,11 +931,11 @@ Pick only from the available columns listed above.`
                 : 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 animate-pulse'}`}>
             {paused ? '⏸' : (currentPlayer === PLAYER_1 ? '🔴' : '🟡')}
             {paused
-              ? ' Game paused'
+              ? t('game.gamePaused')
               : isThinking
-                ? ` Player ${currentPlayer} is thinking…`
-                : ` Player ${currentPlayer}'s turn`}
-            {!paused && ` · Move ${moveCount + 1}`}
+                ? t('game.playerThinking', { player: currentPlayer })
+                : t('game.playerTurn', { player: currentPlayer })}
+            {!paused && t('game.moveLabel', { move: moveCount + 1 })}
           </div>
 
           <button
@@ -942,7 +945,7 @@ Pick only from the available columns listed above.`
                 ? 'bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30'
                 : 'bg-gray-700/40 border-gray-500/40 text-gray-300 hover:bg-gray-600/40'}`}
           >
-            {paused ? '▶ Resume' : '⏸ Pause'}
+            {paused ? t('game.resume') : t('game.pause')}
           </button>
         </div>
       </div>
@@ -987,11 +990,11 @@ Pick only from the available columns listed above.`
       {/* Game log */}
       <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4 max-w-[1400px] mx-auto w-full">
         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
-          Game Log · {moveCount} moves
+          {t('game.gameLogWithMoves', { count: moveCount })}
         </h3>
         <div ref={logRef} className="max-h-32 overflow-y-auto space-y-0.5">
           {gameLog.length === 0 && (
-            <div className="text-gray-600 text-xs">Game starting…</div>
+            <div className="text-gray-600 text-xs">{t('game.gameStarting')}</div>
           )}
           {gameLog.map((entry, i) => (
             <div key={i} className="text-xs text-gray-400 font-mono">{entry}</div>
