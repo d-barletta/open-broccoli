@@ -269,6 +269,7 @@ export default function MatchPage() {
   const [lottieData, setLottieData] = useState(null)
   const [guestUsername, setGuestUsername] = useState('')
   const [guestJoinLoading, setGuestJoinLoading] = useState(false)
+  const [openMobileThinkingPanel, setOpenMobileThinkingPanel] = useState(null)
   const startGameRequestedRef = useRef(false)
 
   // Determine which player number I am
@@ -804,7 +805,42 @@ export default function MatchPage() {
             </div>
           )}
 
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch w-full max-w-[1400px] mx-auto">
+          <div className="lg:hidden flex flex-col items-center gap-3 w-full max-w-[520px] mx-auto">
+            <ConnectBoard board={board} lastMove={gs.lastMove} winningCells={gs.winningCells}
+              bet1={match.player1ColumnBet} bet2={match.player2ColumnBet} />
+
+            <div className="w-full space-y-2">
+              <button
+                type="button"
+                onClick={() => setOpenMobileThinkingPanel(prev => prev === 1 ? null : 1)}
+                className="w-full flex items-center justify-between rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-left"
+              >
+                <span className="text-sm font-bold text-red-300 truncate">🔴 {match.player1Username}</span>
+                <span className="text-xs text-red-200">{openMobileThinkingPanel === 1 ? 'Hide' : 'Show'} thoughts</span>
+              </button>
+              {openMobileThinkingPanel === 1 && (
+                <ThinkingPanel playerNum={1} username={match.player1Username} model={match.player1Model}
+                  thinking={thinking1} isThinking={isThinking1}
+                  lastCol={gs.lastMove?.col != null && gs.currentPlayer !== 1 ? gs.lastMove.col : null} />
+              )}
+
+              <button
+                type="button"
+                onClick={() => setOpenMobileThinkingPanel(prev => prev === 2 ? null : 2)}
+                className="w-full flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-950/20 px-3 py-2 text-left"
+              >
+                <span className="text-sm font-bold text-yellow-300 truncate">🟡 {match.player2Username}</span>
+                <span className="text-xs text-yellow-200">{openMobileThinkingPanel === 2 ? 'Hide' : 'Show'} thoughts</span>
+              </button>
+              {openMobileThinkingPanel === 2 && (
+                <ThinkingPanel playerNum={2} username={match.player2Username} model={match.player2Model}
+                  thinking={thinking2} isThinking={isThinking2}
+                  lastCol={gs.lastMove?.col != null && gs.currentPlayer !== 2 ? gs.lastMove.col : null} />
+              )}
+            </div>
+          </div>
+
+          <div className="hidden lg:flex flex-col lg:flex-row gap-4 items-stretch w-full max-w-[1400px] mx-auto">
             <div className="flex-1 min-w-0">
               <ThinkingPanel playerNum={1} username={match.player1Username} model={match.player1Model}
                 thinking={thinking1} isThinking={isThinking1}

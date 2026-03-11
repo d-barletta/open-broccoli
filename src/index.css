@@ -114,3 +114,12 @@
 .animate-drop-in {
   animation: dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* iOS Safari zooms focused controls under 16px. Keep controls readable and stable on mobile. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
