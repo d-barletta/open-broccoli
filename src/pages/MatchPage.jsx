@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
+import winAnimation from '../assets/animations/win.json'
 import { useAuth } from '../contexts/AuthContext'
 import {
   subscribeToMatch, subscribeToGameState, joinMatch,
@@ -268,7 +269,6 @@ export default function MatchPage() {
   const [moveBet, setMoveBet] = useState(null)
   const [isReady, setIsReady] = useState(false)
   const [savingConfig, setSavingConfig] = useState(false)
-  const [lottieData, setLottieData] = useState(null)
   const [guestUsername, setGuestUsername] = useState('')
   const [guestJoinLoading, setGuestJoinLoading] = useState(false)
   const [openMobileThinkingPanel, setOpenMobileThinkingPanel] = useState(null)
@@ -301,14 +301,6 @@ export default function MatchPage() {
     })
     return unsub
   }, [matchId, match?.status])
-
-  // Load lottie when game ends with a winner
-  useEffect(() => {
-    if (match?.status === 'finished' && match?.winner !== 'draw' && match?.winner !== null) {
-      fetch('https://assets.lottiefiles.com/packages/lf20_touohxv0.json')
-        .then(r => r.json()).then(setLottieData).catch(() => {})
-    }
-  }, [match?.status, match?.winner])
 
   // Auto-join as P2 if we're logged in and match needs P2
   useEffect(() => {
@@ -755,11 +747,17 @@ export default function MatchPage() {
               )}
             </div>
 
-            {lottieData && ((match.winner === 'player1' && myPlayerNum === 1) || (match.winner === 'player2' && myPlayerNum === 2)) && (
+            {!isSpectator && (
               <div className="flex justify-center">
-                <div className="w-48 h-48 pointer-events-none select-none">
-                  <Lottie animationData={lottieData} loop />
-                </div> 
+                {((match.winner === 'player1' && myPlayerNum === 1) || (match.winner === 'player2' && myPlayerNum === 2)) ? (
+                  <div className="w-48 h-48 pointer-events-none select-none">
+                    <Lottie animationData={winAnimation} loop />
+                  </div>
+                ) : match.winner !== 'draw' ? (
+                  <div className="w-48 h-48 flex items-center justify-center">
+                    <span className="text-8xl" role="img" aria-label="You lost">😔</span>
+                  </div>
+                ) : null}
               </div>
             )}
 
