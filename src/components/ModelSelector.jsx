@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const POPULAR_MODELS = [
   'openai/gpt-4o',
@@ -17,13 +18,10 @@ function isModelFree(model) {
   return (p.prompt === '0' || p.prompt === 0) && (p.completion === '0' || p.completion === 0)
 }
 
-const FILTER_OPTIONS = [
-  { key: 'all', label: 'All' },
-  { key: 'free', label: '🆓 Free' },
-  { key: 'paid', label: '💳 Paid' },
-]
+const FILTER_KEYS = ['all', 'free', 'paid']
 
 export default function ModelSelector({ label, value, onChange, models, loading, side }) {
+  const { t } = useTranslation()
   const [filter, setFilter] = useState('all')
 
   const isBlue = side === 'left'
@@ -40,7 +38,6 @@ export default function ModelSelector({ label, value, onChange, models, loading,
 
   const allModels = models.length > 0 ? models : POPULAR_MODELS.map(id => ({ id, name: id }))
 
-  // Only apply free/paid filter when real models with pricing data are available
   const hasPricingData = models.length > 0 && models.some(m => m.pricing)
 
   const displayModels = hasPricingData
@@ -51,12 +48,10 @@ export default function ModelSelector({ label, value, onChange, models, loading,
       })
     : allModels
 
-  // If the currently selected model was filtered out, pick the first available
   const effectiveValue = displayModels.find(m => m.id === value)
     ? value
     : displayModels[0]?.id ?? value
 
-  // Keep parent state in sync when the selection changes due to filtering
   useEffect(() => {
     if (effectiveValue !== value && displayModels.length > 0) {
       onChange(effectiveValue)
@@ -76,7 +71,7 @@ export default function ModelSelector({ label, value, onChange, models, loading,
         )}
         {selectedModel && hasPricingData && (
           <span className={`text-xs px-2 py-0.5 rounded-full border ${isModelFree(selectedModel) ? 'bg-green-900/40 text-green-400 border-green-500/30' : 'bg-orange-900/40 text-orange-400 border-orange-500/30'}`}>
-            {isModelFree(selectedModel) ? '🆓 Free' : '💳 Paid'}
+            {isModelFree(selectedModel) ? t('modelSelector.free') : t('modelSelector.paid')}
           </span>
         )}
       </div>
@@ -84,29 +79,29 @@ export default function ModelSelector({ label, value, onChange, models, loading,
       {/* Free / Paid filter — only shown when pricing data is available */}
       {hasPricingData && (
         <div className="flex items-center gap-1">
-          {FILTER_OPTIONS.map(opt => (
+          {FILTER_KEYS.map(key => (
             <button
-              key={opt.key}
+              key={key}
               type="button"
-              onClick={() => setFilter(opt.key)}
+              onClick={() => setFilter(key)}
               className={`text-xs px-2.5 py-1 rounded-lg border transition-all font-medium
-                ${filter === opt.key
+                ${filter === key
                   ? filterActiveClass
                   : 'bg-gray-800/40 border-gray-700/40 text-gray-500 hover:text-gray-300 hover:border-gray-600'
                 }`}
             >
-              {opt.label}
+              {t(`modelSelector.${key}`)}
             </button>
           ))}
           <span className="text-xs text-gray-600 ml-1">
-            {displayModels.length} model{displayModels.length !== 1 ? 's' : ''}
+            {t('modelSelector.modelCount', { count: displayModels.length })}
           </span>
         </div>
       )}
 
       {loading ? (
         <div className={`w-full bg-gray-800/60 border ${accentClass} rounded-lg px-4 py-3 text-gray-500 text-sm`}>
-          Loading models…
+          {t('modelSelector.loading')}
         </div>
       ) : (
         <div className="relative">

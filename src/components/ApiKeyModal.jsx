@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function ApiKeyModal({ onSave, initialKey = '' }) {
+  const { t } = useTranslation()
   const [key, setKey] = useState(initialKey)
   const [visible, setVisible] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -25,16 +27,16 @@ export default function ApiKeyModal({ onSave, initialKey = '' }) {
           <span className="text-lg">🔑</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-gray-200 mb-1">OpenRouter API Key</h3>
+          <h3 className="text-sm font-bold text-gray-200 mb-1">{t('apiKey.title')}</h3>
           <p className="text-xs text-gray-500 mb-3">
-            Your key is stored only in your browser's localStorage and never sent anywhere except OpenRouter.{' '}
+            {t('apiKey.description')}{' '}
             <a
               href="https://openrouter.ai/keys"
               target="_blank"
               rel="noopener noreferrer"
               className="text-yellow-400/80 hover:text-yellow-400 underline underline-offset-2"
             >
-              Get a key →
+              {t('apiKey.getKey')}
             </a>
           </p>
 
@@ -54,7 +56,6 @@ export default function ApiKeyModal({ onSave, initialKey = '' }) {
                 type="button"
                 onClick={() => setVisible(v => !v)}
                 className="absolute inset-y-0 right-2 flex items-center px-1 text-gray-500 hover:text-gray-300 transition-colors"
-                title={visible ? 'Hide key' : 'Show key'}
               >
                 {visible ? (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -75,7 +76,7 @@ export default function ApiKeyModal({ onSave, initialKey = '' }) {
               className="px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:bg-gray-700 disabled:text-gray-500
                 text-gray-900 font-bold text-sm rounded-lg transition-all active:scale-95 disabled:cursor-not-allowed"
             >
-              {saved ? '✓ Saved' : 'Save'}
+              {saved ? t('apiKey.saved') : t('apiKey.save')}
             </button>
 
             {initialKey && (
@@ -83,7 +84,7 @@ export default function ApiKeyModal({ onSave, initialKey = '' }) {
                 onClick={handleClear}
                 className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-red-400
                   text-sm rounded-lg transition-all border border-gray-700/50"
-                title="Clear API key"
+                title={t('apiKey.clearTitle')}
               >
                 ✕
               </button>
