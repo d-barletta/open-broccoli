@@ -1,6 +1,6 @@
 import {
-  doc, collection, setDoc, getDoc, updateDoc,
-  onSnapshot, serverTimestamp, query, orderBy, limit, getDocs,
+  doc, collection, setDoc, getDoc, updateDoc, runTransaction,
+  onSnapshot, serverTimestamp, query, orderBy, limit, getDocs, where,
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
@@ -142,28 +142,55 @@ export async function getPrivateConfig(matchId, playerNum) {
 
 // ─── Game state ───────────────────────────────────────────────────────────────
 export async function initGameState(matchId, initialBoard) {
-  await setDoc(doc(db, 'gameState', matchId), {
-    board: encodeBoard(initialBoard),
-    currentPlayer: 1,
-    moveLog: [],
-    moveCount: 0,
-    lastMove: null,
-    winningCells: null,
-    winner: null,
-    isThinking: false,
-    thinkingPlayer: null,
-    // pendingAiMove=true signals the server-side AI handler to begin processing.
-    // Vercel: the browser detects this and calls /api/ai-move.
-    // Firebase CF: the Firestore document trigger fires automatically.
-    pendingAiMove: true,
-    currentThinkingText: '',
-    player1LastThinking: '',
-    player2LastThinking: '',
-    error: null,
-  })
-  await updateDoc(doc(db, 'matches', matchId), {
-    status: 'playing',
-    startedAt: serverTimestamp(),
+  const matchRef = doc(db, 'matches', matchId)
+  const gsRef = doc(db, 'gameState', matchId)
+
+  return runTransaction(db, async (tx) => {
+    const [matchSnap, gsSnap] = await Promise.all([
+      tx.get(matchRef),
+      tx.get(gsRef),
+    ])
+
+    if (!matchSnap.exists()) {
+      throw new Error('Match not found.')
+    }
+
+    const match = matchSnap.data()
+    if (match.status !== 'setup' || !match.player1Ready || !match.player2Ready) {
+      return false
+    }
+
+    // If game state already exists, another client/tab already started the game.
+    if (gsSnap.exists()) {
+      return false
+    }
+
+    tx.set(gsRef, {
+      board: encodeBoard(initialBoard),
+      currentPlayer: 1,
+      moveLog: [],
+      moveCount: 0,
+      lastMove: null,
+      winningCells: null,
+      winner: null,
+      isThinking: false,
+      thinkingPlayer: null,
+      // pendingAiMove=true signals the server-side AI handler to begin processing.
+      // Vercel: the browser detects this and calls /api/ai-move.
+      // Firebase CF: the Firestore document trigger fires automatically.
+      pendingAiMove: true,
+      currentThinkingText: '',
+      player1LastThinking: '',
+      player2LastThinking: '',
+      error: null,
+    })
+
+    tx.update(matchRef, {
+      status: 'playing',
+      startedAt: serverTimestamp(),
+    })
+
+    return true
   })
 }
 
@@ -235,4 +262,27 @@ export async function updateUserAdmin(uid, updates) {
 export async function getAllMatches(limitCount = 50) {
   const snap = await getDocs(query(collection(db, 'matches'), orderBy('createdAt', 'desc'), limit(limitCount)))
   return snap.docs.map(d => d.data())
+}
+
+export async function getUserMatches(uid, limitCount = 50) {
+  const matchesRef = collection(db, 'matches')
+  const [player1Snap, player2Snap] = await Promise.all([
+    getDocs(query(matchesRef, where('player1Uid', '==', uid))),
+    getDocs(query(matchesRef, where('player2Uid', '==', uid))),
+  ])
+
+  const deduped = new Map()
+
+  for (const snap of [...player1Snap.docs, ...player2Snap.docs]) {
+    const data = snap.data()
+    deduped.set(data.id || snap.id, data)
+  }
+
+  return Array.from(deduped.values())
+    .sort((left, right) => {
+      const leftTime = left.createdAt?.seconds || 0
+      const rightTime = right.createdAt?.seconds || 0
+      return rightTime - leftTime
+    })
+    .slice(0, limitCount)
 }

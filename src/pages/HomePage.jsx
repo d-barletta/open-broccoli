@@ -48,6 +48,13 @@ export default function HomePage() {
             <span className="font-black text-sm text-gray-300 tracking-tight">open-broccoli</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="text-xs px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30
+                text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium"
+            >
+              My Dashboard
+            </button>
             {isAdmin && (
               <button
                 onClick={() => navigate('/admin')}
@@ -92,6 +99,9 @@ export default function HomePage() {
                 · {userProfile.matchesWon} won
               </span>
             )}
+          </p>
+          <p className="text-gray-600 text-xs mt-2">
+            Use My Dashboard to review your own matches and see whether each one was won, lost, drawn, or still in progress.
           </p>
         </div>
 

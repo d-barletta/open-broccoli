@@ -7,6 +7,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isRegisteredUser() {
+      return isAuthenticated() &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     function isOwner(uid) {
       return request.auth.uid == uid;
     }
@@ -31,7 +36,7 @@ service cloud.firestore {
     // ── Username registry ─────────────────────────────────────────────────
     match /usernames/{username} {
       allow read: if true;
-      allow create: if isAuthenticated();
+      allow create: if isRegisteredUser();
       allow delete: if isAdmin();
     }
 
@@ -52,7 +57,7 @@ service cloud.firestore {
     // ── Matches ───────────────────────────────────────────────────────────
     match /matches/{matchId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isNotBanned();
+      allow create: if isRegisteredUser() && isNotBanned();
       allow update: if isAuthenticated() && (
         resource.data.player1Uid == request.auth.uid ||
         resource.data.player2Uid == request.auth.uid ||

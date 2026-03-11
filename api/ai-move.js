@@ -188,26 +188,34 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
 // ─── Player stats helper ──────────────────────────────────────────────────────
 async function updatePlayerStats(db, matchId, winnerPlayerNum) {
   try {
-    const matchSnap = await db.doc(`matches/${matchId}`).get()
-    const matchData = matchSnap.data()
-    if (!matchData) return
+    const matchRef = db.doc(`matches/${matchId}`)
+    await db.runTransaction(async (tx) => {
+      const matchSnap = await tx.get(matchRef)
+      const matchData = matchSnap.data()
+      if (!matchData) return
 
-    const batch = db.batch()
+      // Idempotency guard: retries or concurrent workers must not double-count stats.
+      if (matchData.statsApplied === true) return
 
-    if (matchData.player1Uid) {
-      const ref = db.doc(`users/${matchData.player1Uid}`)
-      const updates = { matchesPlayed: FieldValue.increment(1) }
-      if (winnerPlayerNum === 1) updates.matchesWon = FieldValue.increment(1)
-      batch.update(ref, updates)
-    }
-    if (matchData.player2Uid) {
-      const ref = db.doc(`users/${matchData.player2Uid}`)
-      const updates = { matchesPlayed: FieldValue.increment(1) }
-      if (winnerPlayerNum === 2) updates.matchesWon = FieldValue.increment(1)
-      batch.update(ref, updates)
-    }
+      if (matchData.player1Uid) {
+        const ref = db.doc(`users/${matchData.player1Uid}`)
+        const updates = { matchesPlayed: FieldValue.increment(1) }
+        if (winnerPlayerNum === 1) updates.matchesWon = FieldValue.increment(1)
+        tx.set(ref, updates, { merge: true })
+      }
 
-    await batch.commit()
+      if (matchData.player2Uid) {
+        const ref = db.doc(`users/${matchData.player2Uid}`)
+        const updates = { matchesPlayed: FieldValue.increment(1) }
+        if (winnerPlayerNum === 2) updates.matchesWon = FieldValue.increment(1)
+        tx.set(ref, updates, { merge: true })
+      }
+
+      tx.update(matchRef, {
+        statsApplied: true,
+        statsAppliedAt: FieldValue.serverTimestamp(),
+      })
+    })
   } catch (err) {
     console.warn(`[ai-move] Stats update failed for match ${matchId}:`, err.message)
   }

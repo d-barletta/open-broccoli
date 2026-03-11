@@ -248,7 +248,7 @@ function BetSelector({ player, columnBet, onColumnBet, moveBet, onMoveBet }) {
 export default function MatchPage() {
   const { matchId } = useParams()
   const navigate = useNavigate()
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, signInAsGuest, isAnonymous } = useAuth()
 
   const [match, setMatch] = useState(null)
   const [gameState, setGameState] = useState(null)
@@ -267,6 +267,9 @@ export default function MatchPage() {
   const [isReady, setIsReady] = useState(false)
   const [savingConfig, setSavingConfig] = useState(false)
   const [lottieData, setLottieData] = useState(null)
+  const [guestUsername, setGuestUsername] = useState('')
+  const [guestJoinLoading, setGuestJoinLoading] = useState(false)
+  const startGameRequestedRef = useRef(false)
 
   // Determine which player number I am
   const myPlayerNum = match
@@ -277,7 +280,7 @@ export default function MatchPage() {
 
   // Subscribe to match doc
   useEffect(() => {
-    if (!matchId) return
+    if (!matchId || !currentUser) return
     setLoading(true)
     const unsub = subscribeToMatch(matchId, (data) => {
       setMatch(data)
@@ -285,7 +288,7 @@ export default function MatchPage() {
       if (!data) setError('Match not found.')
     })
     return unsub
-  }, [matchId])
+  }, [matchId, currentUser?.uid])
 
   // Subscribe to game state when playing or finished
   useEffect(() => {
@@ -312,7 +315,20 @@ export default function MatchPage() {
     joinMatch(matchId, currentUser.uid, userProfile.username).catch(err => {
       setJoinError(err.message)
     })
-  }, [match?.status, match?.player1Uid, currentUser?.uid])
+  }, [match?.status, match?.player1Uid, currentUser?.uid, userProfile?.username, matchId])
+
+  async function handleGuestJoin(e) {
+    e.preventDefault()
+    setError(null)
+    setGuestJoinLoading(true)
+    try {
+      await signInAsGuest(guestUsername)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setGuestJoinLoading(false)
+    }
+  }
 
   // Fetch model list from admin public settings
   useEffect(() => {
@@ -370,10 +386,19 @@ export default function MatchPage() {
   // which sets pendingAiMove=true — the Vercel function above picks this up and
   // processes the first move; Firebase CF deployments use the Firestore trigger).
   useEffect(() => {
+    startGameRequestedRef.current = false
+  }, [matchId])
+
+  useEffect(() => {
     if (!match || match.status !== 'setup') return
     if (!match.player1Ready || !match.player2Ready) return
     if (myPlayerNum !== 1) return
-    initGameState(matchId, createBoard()).catch(err => setError(err.message))
+    if (startGameRequestedRef.current) return
+    startGameRequestedRef.current = true
+    initGameState(matchId, createBoard()).catch(err => {
+      startGameRequestedRef.current = false
+      setError(err.message)
+    })
   }, [match?.player1Ready, match?.player2Ready, match?.status, myPlayerNum, matchId])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -424,6 +449,60 @@ export default function MatchPage() {
   }
 
   // ── Render states ──────────────────────────────────────────────────────────
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black flex items-center justify-center px-4">
+        <div className="w-full max-w-lg bg-gray-900/80 border border-gray-700/60 rounded-3xl p-8 shadow-2xl">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-3">🔗</div>
+            <h1 className="text-2xl font-black text-white mb-2">Join Match {matchId}</h1>
+            <p className="text-sm text-gray-400">
+              Sign in with your account, or enter a username to join this match as a guest.
+            </p>
+          </div>
+
+          {error && (
+            <div className="bg-red-950/60 border border-red-500/40 rounded-lg px-3 py-2.5 text-red-300 text-sm flex gap-2 items-start mb-4">
+              <span className="flex-shrink-0 mt-0.5">⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="grid gap-4">
+            <button
+              onClick={() => navigate(`/login?redirect=${encodeURIComponent(`/match/${matchId}`)}`)}
+              className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-gray-900 font-black text-base rounded-xl transition-all duration-200 shadow-lg hover:shadow-yellow-500/20 active:scale-95"
+            >
+              Sign In or Register
+            </button>
+
+            <div className="relative flex items-center justify-center text-xs uppercase tracking-widest text-gray-600">
+              <span className="absolute inset-x-0 h-px bg-gray-800" />
+              <span className="relative bg-gray-900 px-3">or join as guest</span>
+            </div>
+
+            <form onSubmit={handleGuestJoin} className="flex flex-col gap-3">
+              <input
+                type="text"
+                value={guestUsername}
+                onChange={e => setGuestUsername(e.target.value)}
+                placeholder="Choose a guest username"
+                className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2.5 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+              />
+              <button
+                type="submit"
+                disabled={guestJoinLoading}
+                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 text-white font-black text-base rounded-xl transition-all duration-200 active:scale-95"
+              >
+                {guestJoinLoading ? 'Joining…' : 'Join as Guest'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -474,9 +553,19 @@ export default function MatchPage() {
           </div>
 
           <div className="bg-red-950/30 border border-red-500/20 rounded-xl p-4">
-            <div className="text-sm font-bold text-red-300 mb-1">🔴 {match.player1Username} (You — Player 1)</div>
-            <div className="text-gray-500 text-xs">Waiting for opponent to join…</div>
+            <div className="text-sm font-bold text-red-300 mb-1">
+              🔴 {match.player1Username} {match.player1Uid === currentUser?.uid ? '(You — Player 1)' : '(Player 1)'}
+            </div>
+            <div className="text-gray-500 text-xs">
+              {match.player1Uid === currentUser?.uid ? 'Waiting for opponent to join…' : 'This seat is reserved for Player 1.'}
+            </div>
           </div>
+
+          {isAnonymous && (
+            <div className="mt-4 text-xs text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2">
+              Joined as guest {userProfile?.username}. You can finish this match without creating an account.
+            </div>
+          )}
         </div>
       </MatchLayout>
     )
@@ -672,12 +761,12 @@ export default function MatchPage() {
             <GameLog log={gs.moveLog || []} moveCount={gs.moveCount || 0} />
 
             <div className="flex justify-center">
-              <button onClick={() => navigate('/')}
+              <button onClick={() => navigate(isAnonymous ? `/login?redirect=${encodeURIComponent(`/match/${matchId}`)}` : '/')}
                 className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-500
                   hover:from-indigo-400 hover:to-purple-400
                   text-white font-bold rounded-xl transition-all duration-200
                   shadow-lg hover:shadow-purple-500/30 active:scale-95">
-                ← Back to Home
+                {isAnonymous ? 'Create Account / Sign In' : '← Back to Home'}
               </button>
             </div>
           </div>
@@ -745,13 +834,13 @@ export default function MatchPage() {
 
 // ─── Helper components ─────────────────────────────────────────────────────────
 function MatchLayout({ matchId, navigate, children }) {
-  const { userProfile, logout, isAdmin } = useAuth()
+  const { userProfile, logout, isAdmin, isAnonymous } = useAuth()
   return (
     <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black">
       <header className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <button onClick={() => navigate(isAnonymous && matchId ? `/match/${matchId}` : '/')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <span className="text-xl">🥦</span>
               <span className="font-black text-sm text-gray-300 tracking-tight">open-broccoli</span>
             </button>
@@ -760,15 +849,27 @@ function MatchLayout({ matchId, navigate, children }) {
                 Match: {matchId}
               </span>
             )}
+            {isAnonymous && (
+              <span className="text-xs px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 rounded-lg font-medium">
+                Guest: {userProfile?.username || 'anonymous'}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {!isAnonymous && isAdmin && (
               <button onClick={() => navigate('/admin')}
                 className="text-xs px-3 py-1.5 rounded-lg border bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-medium">
                 ⚙ Admin
               </button>
             )}
-            <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
+            {isAnonymous ? (
+              <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(matchId ? `/match/${matchId}` : '/')}`)}
+                className="text-xs px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium">
+                Create Account / Sign In
+              </button>
+            ) : (
+              <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
+            )}
             <button onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all">
               Sign Out

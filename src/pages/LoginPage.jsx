@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
-  const { login, register } = useAuth()
-  const [mode, setMode] = useState('login') // 'login' | 'register'
+  const { login, register, isAnonymous, userProfile, logout } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [mode, setMode] = useState(isAnonymous ? 'register' : 'login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -11,6 +14,16 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const redirectTarget = searchParams.get('redirect') || '/'
+
+  function selectMode(nextMode) {
+    if (isAnonymous && nextMode === 'login') {
+      setError('To keep your guest match history, upgrade this guest session with Register. If you need another account, sign out first.')
+      return
+    }
+    setMode(nextMode)
+    setError(null)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -34,6 +47,7 @@ export default function LoginPage() {
       } else {
         await register(email, password, username.trim())
       }
+      navigate(redirectTarget, { replace: true })
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -50,7 +64,11 @@ export default function LoginPage() {
             <span className="text-5xl">🥦</span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">open-broccoli</h1>
-          <p className="text-gray-500 text-sm mt-1">AI-powered Connect 4 — Online Multiplayer</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {isAnonymous
+              ? `Upgrade guest session for ${userProfile?.username || 'guest'} and keep your matches`
+              : 'AI-powered Connect 4 — Online Multiplayer'}
+          </p>
         </div>
 
         {/* Card */}
@@ -58,20 +76,26 @@ export default function LoginPage() {
           {/* Mode switcher */}
           <div className="flex rounded-lg bg-gray-800/60 p-1 mb-6">
             <button
-              onClick={() => { setMode('login'); setError(null) }}
+              onClick={() => selectMode('login')}
               className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all
-                ${mode === 'login' ? 'bg-yellow-500 text-gray-900 shadow' : 'text-gray-400 hover:text-gray-200'}`}
+                ${mode === 'login' ? 'bg-yellow-500 text-gray-900 shadow' : 'text-gray-400 hover:text-gray-200'} ${isAnonymous ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Sign In
+              {isAnonymous ? 'Existing Account' : 'Sign In'}
             </button>
             <button
-              onClick={() => { setMode('register'); setError(null) }}
+              onClick={() => selectMode('register')}
               className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all
                 ${mode === 'register' ? 'bg-yellow-500 text-gray-900 shadow' : 'text-gray-400 hover:text-gray-200'}`}
             >
-              Register
+              {isAnonymous ? 'Upgrade Guest' : 'Register'}
             </button>
           </div>
+
+          {isAnonymous && (
+            <div className="bg-cyan-950/50 border border-cyan-500/30 rounded-lg px-3 py-2.5 text-cyan-200 text-sm mb-4">
+              This will attach email and password to your current guest session, so your existing matches stay on the same account.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {mode === 'register' && (
@@ -172,15 +196,28 @@ export default function LoginPage() {
                 text-gray-900 font-black text-base rounded-xl transition-all duration-200
                 shadow-lg hover:shadow-yellow-500/20 active:scale-95 mt-1"
             >
-              {loading ? '...' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+              {loading ? '...' : mode === 'login' ? 'Sign In →' : isAnonymous ? 'Upgrade Account →' : 'Create Account →'}
             </button>
           </form>
 
-          {mode === 'register' && (
+          {isAnonymous ? (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout()
+                  navigate('/login', { replace: true })
+                }}
+                className="text-xs text-gray-500 hover:text-gray-300 underline underline-offset-2"
+              >
+                Sign out guest session
+              </button>
+            </div>
+          ) : mode === 'register' ? (
             <p className="text-gray-600 text-xs text-center mt-4">
               The first registered user becomes admin.
             </p>
-          )}
+          ) : null}
         </div>
 
         <p className="text-center text-gray-700 text-xs mt-6">
