@@ -261,6 +261,8 @@ export default function MatchPage() {
   const [models, setModels] = useState([])
   const [modelsLoading, setModelsLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_1)
+  const [forceSameModel, setForceSameModel] = useState(false)
+  const [forcedModel, setForcedModel] = useState('')
   const [instructions, setInstructions] = useState('')
   const [columnBet, setColumnBet] = useState(null)
   const [moveBet, setMoveBet] = useState(null)
@@ -339,15 +341,24 @@ export default function MatchPage() {
       if (settings?.availableModels?.length > 0) {
         setModels(settings.availableModels.map(id => ({ id, name: id })))
       }
+      const forced = settings?.forceSameModel === true
+      const forcedId = settings?.forcedModel || settings?.availableModels?.[0] || ''
+      setForceSameModel(forced)
+      setForcedModel(forced ? forcedId : '')
+      if (forced && forcedId) setSelectedModel(forcedId)
       // If no models configured, ModelSelector falls back to its hardcoded popular list
     }).catch(() => {}).finally(() => setModelsLoading(false))
   }, [currentUser])
 
   // Set default model based on player number
   useEffect(() => {
+    if (forceSameModel && forcedModel) {
+      setSelectedModel(forcedModel)
+      return
+    }
     if (myPlayerNum === 1) setSelectedModel(DEFAULT_MODEL_1)
     else if (myPlayerNum === 2) setSelectedModel(DEFAULT_MODEL_2)
-  }, [myPlayerNum])
+  }, [myPlayerNum, forceSameModel, forcedModel])
 
   // Trigger the Vercel AI endpoint whenever the server signals a move is needed.
   // Uses moveCount+currentPlayer as a key to fire exactly once per pending move.
@@ -405,16 +416,17 @@ export default function MatchPage() {
   // ── Handlers ──────────────────────────────────────────────────────────────
   async function handleReady() {
     if (!myPlayerNum) return
-    if (columnBet === null || moveBet === null || !selectedModel) return
+    const modelToUse = forceSameModel ? forcedModel : selectedModel
+    if (columnBet === null || moveBet === null || !modelToUse) return
     setSavingConfig(true)
     try {
       await savePrivateConfig(matchId, myPlayerNum, currentUser.uid, {
-        model: selectedModel,
+        model: modelToUse,
         instructions,
         columnBet,
         moveBet,
       })
-      await setPlayerReady(matchId, myPlayerNum, { model: selectedModel, columnBet, moveBet })
+      await setPlayerReady(matchId, myPlayerNum, { model: modelToUse, columnBet, moveBet })
       setIsReady(true)
     } catch (err) {
       setError(err.message)
@@ -615,14 +627,21 @@ export default function MatchPage() {
                 <div className="font-bold text-sm text-gray-200">Your Configuration (Private)</div>
               </div>
               <div className="p-4 flex flex-col gap-4">
-                <ModelSelector
-                  label="🤖 Your AI Model"
-                  value={selectedModel}
-                  onChange={setSelectedModel}
-                  models={models}
-                  loading={modelsLoading}
-                  side={isP1 ? 'left' : 'right'}
-                />
+                {!forceSameModel ? (
+                  <ModelSelector
+                    label="🤖 Your AI Model"
+                    value={selectedModel}
+                    onChange={setSelectedModel}
+                    models={models}
+                    loading={modelsLoading}
+                    side={isP1 ? 'left' : 'right'}
+                  />
+                ) : (
+                  <div className={`rounded-lg border px-3 py-2.5 text-sm ${isP1 ? 'border-red-500/30 bg-red-950/20 text-red-200' : 'border-yellow-500/30 bg-yellow-950/20 text-yellow-200'}`}>
+                    <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">🤖 AI Model (forced by admin)</div>
+                    <div className="font-mono text-xs break-all">{forcedModel || selectedModel || '—'}</div>
+                  </div>
+                )}
                 <div>
                   <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${isP1 ? 'text-red-400' : 'text-yellow-400'}`}>
                     🔒 Instructions for your AI (private)
@@ -660,7 +679,7 @@ export default function MatchPage() {
             {!myReady ? (
               <button
                 onClick={handleReady}
-                disabled={savingConfig || columnBet === null || moveBet === null || !selectedModel}
+                disabled={savingConfig || columnBet === null || moveBet === null || !(forceSameModel ? forcedModel : selectedModel)}
                 className="px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-500
                   hover:from-green-500 hover:to-emerald-400
                   disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed
@@ -736,16 +755,16 @@ export default function MatchPage() {
               )}
             </div>
 
-            {/* Bet results */}
-            <BetResults match={match} gs={gs} />
-
-            {lottieData && match.winner !== 'draw' && (
+            {lottieData && ((match.winner === 'player1' && myPlayerNum === 1) || (match.winner === 'player2' && myPlayerNum === 2)) && (
               <div className="flex justify-center">
                 <div className="w-48 h-48 pointer-events-none select-none">
                   <Lottie animationData={lottieData} loop />
-                </div>
+                </div> 
               </div>
             )}
+
+            {/* Bet results */}
+            <BetResults match={match} gs={gs} />
 
             <div className="flex justify-center">
               <ConnectBoard board={board} lastMove={gs.lastMove} winningCells={gs.winningCells}

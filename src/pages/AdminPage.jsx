@@ -21,6 +21,8 @@ export default function AdminPage() {
   const [openrouterApiKey, setOpenrouterApiKey] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [availableModels, setAvailableModels] = useState('')
+  const [forceSameModel, setForceSameModel] = useState(false)
+  const [forcedModel, setForcedModel] = useState('')
   const [settingsLoading, setSettingsLoading] = useState(false)
 
   // Users tab
@@ -40,7 +42,10 @@ export default function AdminPage() {
     setSettingsLoading(true)
     try {
       const [pub, sec] = await Promise.all([getAdminPublicSettings(), getAdminSecretSettings()])
-      setAvailableModels((pub?.availableModels || []).join('\n'))
+      const models = pub?.availableModels || []
+      setAvailableModels(models.join('\n'))
+      setForceSameModel(pub?.forceSameModel === true)
+      setForcedModel(pub?.forcedModel || models[0] || '')
       setOpenrouterApiKey(sec?.openrouterApiKey || '')
     } catch (err) {
       setError(err.message)
@@ -86,8 +91,16 @@ export default function AdminPage() {
     setSettingsLoading(true)
     try {
       const modelsList = availableModels.split('\n').map(s => s.trim()).filter(Boolean)
+      const effectiveForcedModel = forcedModel.trim() || modelsList[0] || ''
+      if (forceSameModel && !effectiveForcedModel) {
+        throw new Error('Select a forced model or add at least one available model before enabling forced mode.')
+      }
       // Save available models to public doc (readable by all authenticated users)
-      await saveAdminPublicSettings({ availableModels: modelsList })
+      await saveAdminPublicSettings({
+        availableModels: modelsList,
+        forceSameModel,
+        forcedModel: forceSameModel ? effectiveForcedModel : null,
+      })
       // Save API key to secret doc (not readable by non-admin clients; Cloud Function uses Admin SDK)
       await saveAdminSecretSettings({ openrouterApiKey })
       setSaved(true)
@@ -248,6 +261,38 @@ export default function AdminPage() {
                   <p className="text-gray-600 text-xs mt-1">
                     One model ID per line. Leave empty to allow all models from OpenRouter.
                   </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-700/60 bg-gray-800/30 p-4">
+                  <label className="flex items-center gap-3 cursor-pointer mb-3">
+                    <input
+                      type="checkbox"
+                      checked={forceSameModel}
+                      onChange={e => setForceSameModel(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-purple-500 focus:ring-purple-500/40"
+                    />
+                    <span className="text-sm font-semibold text-gray-200">Force same model for all players</span>
+                  </label>
+
+                  {forceSameModel && (
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">
+                        Forced Model
+                      </label>
+                      <select
+                        value={forcedModel}
+                        onChange={e => setForcedModel(e.target.value)}
+                        className="w-full bg-gray-800/80 border border-gray-600/50 rounded-lg px-3 py-2.5 text-gray-100 text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all"
+                      >
+                        {[...new Set(availableModels.split('\n').map(s => s.trim()).filter(Boolean))].map(modelId => (
+                          <option key={modelId} value={modelId}>{modelId}</option>
+                        ))}
+                      </select>
+                      <p className="text-gray-500 text-xs mt-2">
+                        Players will not see model selection in match setup, and this model will be used for both sides.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

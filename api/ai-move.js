@@ -358,6 +358,22 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true })
   }
 
+  const publicSettingsSnap = await db.doc('adminSettings/public').get()
+  const publicSettings = publicSettingsSnap.data() || {}
+  const forceSameModel = publicSettings.forceSameModel === true
+  const forcedModel = publicSettings.forcedModel
+  const modelToUse = (forceSameModel && forcedModel) ? forcedModel : config.model
+
+  if (!modelToUse) {
+    await gsRef.update({
+      isThinking: false,
+      thinkingPlayer: null,
+      currentThinkingText: '',
+      error: 'No model configured for this player. Ask the admin to set a valid model.',
+    })
+    return res.status(200).json({ ok: true })
+  }
+
   // ── Build AI prompt ───────────────────────────────────────────────────────────
   const isP1 = playerNum === 1
   const playerSym = isP1 ? 'R (Red 🔴)' : 'Y (Yellow 🟡)'
@@ -385,7 +401,7 @@ Pick only from the available columns listed above.`
   try {
     fullResponse = await callOpenRouter({
       apiKey,
-      model: config.model,
+      model: modelToUse,
       systemPrompt,
       userMsg,
       gsRef,
