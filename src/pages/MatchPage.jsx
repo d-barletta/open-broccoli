@@ -332,10 +332,43 @@ export default function MatchPage() {
     else if (myPlayerNum === 2) setSelectedModel(DEFAULT_MODEL_2)
   }, [myPlayerNum])
 
+  // Trigger the Vercel AI endpoint whenever the server signals a move is needed.
+  // Uses moveCount+currentPlayer as a key to fire exactly once per pending move.
+  // For Firebase Cloud Function deployments the fetch will silently fail (no
+  // /api/ai-move route) and the CF handles the move via the Firestore trigger.
+  const aiTriggerKeyRef = useRef(null)
+  useEffect(() => {
+    if (!gameState) return
+    if (!gameState.pendingAiMove || gameState.isThinking || gameState.winner !== null) return
+    if (!currentUser) return
+
+    const moveKey = `${gameState.moveCount}-${gameState.currentPlayer}`
+    if (aiTriggerKeyRef.current === moveKey) return
+    aiTriggerKeyRef.current = moveKey
+
+    currentUser.getIdToken().then(token => {
+      fetch('/api/ai-move', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ matchId }),
+      }).then(res => {
+        if (!res.ok && res.status !== 404) {
+          // 404 is expected for Firebase CF deployments (no /api/ai-move route)
+          console.warn('[ai-move] Unexpected response from /api/ai-move:', res.status)
+        }
+      }).catch(() => {
+        // Network errors are expected for Firebase CF deployments
+      })
+    }).catch(() => {})
+  }, [gameState?.pendingAiMove, gameState?.isThinking, gameState?.winner,
+    gameState?.moveCount, gameState?.currentPlayer, matchId, currentUser])
+
   // Start game when both players are ready (Player 1 initialises game state,
-  // which sets pendingAiMove=true and triggers the Cloud Function chain).
-  // This only runs AFTER both players have saved their private config (model +
-  // instructions) and called setPlayerReady — so the CF can read both configs.
+  // which sets pendingAiMove=true — the Vercel function above picks this up and
+  // processes the first move; Firebase CF deployments use the Firestore trigger).
   useEffect(() => {
     if (!match || match.status !== 'setup') return
     if (!match.player1Ready || !match.player2Ready) return

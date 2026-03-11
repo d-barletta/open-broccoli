@@ -117,8 +117,9 @@ export async function initGameState(matchId, initialBoard) {
     winner: null,
     isThinking: false,
     thinkingPlayer: null,
-    // pendingAiMove=true signals the Cloud Function to begin processing moves.
-    // All subsequent game state updates are handled server-side.
+    // pendingAiMove=true signals the server-side AI handler to begin processing.
+    // Vercel: the browser detects this and calls /api/ai-move.
+    // Firebase CF: the Firestore document trigger fires automatically.
     pendingAiMove: true,
     currentThinkingText: '',
     player1LastThinking: '',
@@ -143,7 +144,8 @@ export function subscribeToGameState(matchId, callback) {
 }
 
 // NOTE: finishMatch (match status + player stats) is handled server-side by the
-// Cloud Function (functions/index.js) which uses the Firebase Admin SDK.
+// AI backend (api/ai-move.js for Vercel, or functions/index.js for Firebase CF),
+// which uses the Firebase Admin SDK to write without client-permission checks.
 
 // ─── Admin settings ───────────────────────────────────────────────────────────
 // adminSettings/public — available models list (readable by all authenticated users)

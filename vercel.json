@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/ai-move.js": {
+      "maxDuration": 60
+    }
+  }
+}
