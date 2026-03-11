@@ -766,7 +766,7 @@ export default function MatchPage() {
                   hover:from-indigo-400 hover:to-purple-400
                   text-white font-bold rounded-xl transition-all duration-200
                   shadow-lg hover:shadow-purple-500/30 active:scale-95">
-                {isAnonymous ? 'Create Account / Sign In' : '← Back to Home'}
+                {isAnonymous ? 'Sign In/Up' : '← Back to Home'}
               </button>
             </div>
           </div>
@@ -865,7 +865,7 @@ function MatchLayout({ matchId, navigate, children }) {
             {isAnonymous ? (
               <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(matchId ? `/match/${matchId}` : '/')}`)}
                 className="text-xs px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium">
-                Create Account / Sign In
+                Sign In/Up
               </button>
             ) : (
               <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
