@@ -251,6 +251,25 @@ export const processAiMove = onDocumentWritten(
     const playerNum = claimedState.currentPlayer
     const board = decodeBoard(claimedState.board)
 
+    // Prevent stale workers from overwriting a newer board state.
+    async function guardedGameStateUpdate(updates) {
+      return db.runTransaction(async (tx) => {
+        const freshSnap = await tx.get(gsRef)
+        const fresh = freshSnap.data()
+        if (!fresh) return false
+
+        const sameTurn = fresh.moveCount === claimedState.moveCount
+          && fresh.pendingAiMove === false
+          && fresh.isThinking === true
+          && fresh.thinkingPlayer === playerNum
+          && fresh.winner === null
+
+        if (!sameTurn) return false
+        tx.update(gsRef, updates)
+        return true
+      })
+    }
+
     // ── Fetch admin API key (Admin SDK bypasses security rules) ─────────────
     const secretSnap = await db.doc('adminSettings/secret').get()
     const apiKey = secretSnap.data()?.openrouterApiKey
@@ -328,7 +347,7 @@ Pick only from the available columns listed above.`
 
     if (col === -1) {
       // Board is completely full — genuine draw
-      await gsRef.update({
+      const applied = await guardedGameStateUpdate({
         winner: 'draw',
         isThinking: false,
         thinkingPlayer: null,
@@ -336,6 +355,7 @@ Pick only from the available columns listed above.`
         [thinkingKey]: fullResponse,
         currentThinkingText: '',
       })
+      if (!applied) return
       await db.doc(`matches/${matchId}`).update({
         winner: 'draw',
         winnerUsername: null,
@@ -357,7 +377,7 @@ Pick only from the available columns listed above.`
     // ── Check win ────────────────────────────────────────────────────────────
     if (checkWinner(nextBoard, row, col, playerNum)) {
       const winCells = findWinningCells(nextBoard, row, col, playerNum)
-      await gsRef.update({
+      const applied = await guardedGameStateUpdate({
         board: encodeBoard(nextBoard),
         lastMove: { row, col },
         moveLog: newMoveLog,
@@ -370,6 +390,7 @@ Pick only from the available columns listed above.`
         [thinkingKey]: fullResponse,
         currentThinkingText: '',
       })
+      if (!applied) return
       const matchSnap = await db.doc(`matches/${matchId}`).get()
       const matchData = matchSnap.data()
       const winnerUsername = playerNum === 1 ? matchData.player1Username : matchData.player2Username
@@ -386,7 +407,7 @@ Pick only from the available columns listed above.`
 
     // ── Check draw (full board) ──────────────────────────────────────────────
     if (isBoardFull(nextBoard)) {
-      await gsRef.update({
+      const applied = await guardedGameStateUpdate({
         board: encodeBoard(nextBoard),
         lastMove: { row, col },
         moveLog: newMoveLog,
@@ -398,6 +419,7 @@ Pick only from the available columns listed above.`
         [thinkingKey]: fullResponse,
         currentThinkingText: '',
       })
+      if (!applied) return
       await db.doc(`matches/${matchId}`).update({
         winner: 'draw',
         winnerUsername: null,
@@ -411,7 +433,7 @@ Pick only from the available columns listed above.`
 
     // ── Continue game: hand off to next player ───────────────────────────────
     const nextPlayer = playerNum === 1 ? 2 : 1
-    await gsRef.update({
+    const applied = await guardedGameStateUpdate({
       board: encodeBoard(nextBoard),
       currentPlayer: nextPlayer,
       lastMove: { row, col },
@@ -423,5 +445,6 @@ Pick only from the available columns listed above.`
       [thinkingKey]: fullResponse,
       currentThinkingText: '',
     })
+    if (!applied) return
   }
 )
