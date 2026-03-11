@@ -30,6 +30,26 @@ const COLS = 7
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 const STREAM_WRITE_INTERVAL_MS = 800
 
+function decodeBoard(storedBoard) {
+  if (!Array.isArray(storedBoard)) return storedBoard
+  if (storedBoard.length === 0) return storedBoard
+  if (Array.isArray(storedBoard[0])) return storedBoard
+  if (storedBoard[0] && typeof storedBoard[0] === 'object' && Array.isArray(storedBoard[0].cells)) {
+    return storedBoard.map(row => row.cells)
+  }
+  return storedBoard
+}
+
+function encodeBoard(board) {
+  if (!Array.isArray(board)) return board
+  return board.map(row => ({ cells: Array.isArray(row) ? row : [] }))
+}
+
+function encodeWinningCells(cells) {
+  if (!Array.isArray(cells)) return cells
+  return cells.map(([row, col]) => ({ row, col }))
+}
+
 // ─── Board helpers ────────────────────────────────────────────────────────────
 function dropPiece(board, col, player) {
   for (let row = ROWS - 1; row >= 0; row--) {
@@ -263,7 +283,7 @@ export default async function handler(req, res) {
   if (!claimedState) return res.status(200).json({ ok: true, skipped: true })
 
   const playerNum = claimedState.currentPlayer
-  const board = claimedState.board
+  const board = decodeBoard(claimedState.board)
 
   // ── Fetch admin API key (Admin SDK bypasses Firestore security rules) ─────────
   const secretSnap = await db.doc('adminSettings/secret').get()
@@ -372,11 +392,11 @@ Pick only from the available columns listed above.`
   if (checkWinner(nextBoard, row, col, playerNum)) {
     const winCells = findWinningCells(nextBoard, row, col, playerNum)
     await gsRef.update({
-      board: nextBoard,
+      board: encodeBoard(nextBoard),
       lastMove: { row, col },
       moveLog: newMoveLog,
       moveCount: newMoveCount,
-      winningCells: winCells,
+      winningCells: encodeWinningCells(winCells),
       winner: playerNum,
       isThinking: false,
       thinkingPlayer: null,
@@ -401,7 +421,7 @@ Pick only from the available columns listed above.`
   // ── Check draw (full board after move) ────────────────────────────────────────
   if (isBoardFull(nextBoard)) {
     await gsRef.update({
-      board: nextBoard,
+      board: encodeBoard(nextBoard),
       lastMove: { row, col },
       moveLog: newMoveLog,
       moveCount: newMoveCount,
@@ -428,7 +448,7 @@ Pick only from the available columns listed above.`
   // endpoint again for the next move.
   const nextPlayer = playerNum === 1 ? 2 : 1
   await gsRef.update({
-    board: nextBoard,
+    board: encodeBoard(nextBoard),
     currentPlayer: nextPlayer,
     lastMove: { row, col },
     moveLog: newMoveLog,

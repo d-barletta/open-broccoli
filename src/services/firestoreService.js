@@ -4,6 +4,41 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
+function encodeBoard(board) {
+  if (!Array.isArray(board)) return board
+  return board.map(row => ({ cells: Array.isArray(row) ? row : [] }))
+}
+
+function decodeBoard(storedBoard) {
+  if (!Array.isArray(storedBoard)) return storedBoard
+  if (storedBoard.length === 0) return storedBoard
+  if (Array.isArray(storedBoard[0])) return storedBoard
+  if (storedBoard[0] && typeof storedBoard[0] === 'object' && Array.isArray(storedBoard[0].cells)) {
+    return storedBoard.map(row => row.cells)
+  }
+  return storedBoard
+}
+
+function encodeWinningCells(cells) {
+  if (!Array.isArray(cells)) return cells
+  return cells.map(([row, col]) => ({ row, col }))
+}
+
+function decodeWinningCells(storedCells) {
+  if (!Array.isArray(storedCells)) return storedCells
+  if (storedCells.length === 0) return storedCells
+  if (Array.isArray(storedCells[0])) return storedCells
+  if (
+    storedCells[0]
+    && typeof storedCells[0] === 'object'
+    && Number.isInteger(storedCells[0].row)
+    && Number.isInteger(storedCells[0].col)
+  ) {
+    return storedCells.map(cell => [cell.row, cell.col])
+  }
+  return storedCells
+}
+
 // ─── ID generator ─────────────────────────────────────────────────────────────
 function generateMatchId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -108,7 +143,7 @@ export async function getPrivateConfig(matchId, playerNum) {
 // ─── Game state ───────────────────────────────────────────────────────────────
 export async function initGameState(matchId, initialBoard) {
   await setDoc(doc(db, 'gameState', matchId), {
-    board: initialBoard,
+    board: encodeBoard(initialBoard),
     currentPlayer: 1,
     moveLog: [],
     moveCount: 0,
@@ -133,12 +168,26 @@ export async function initGameState(matchId, initialBoard) {
 }
 
 export async function updateGameState(matchId, updates) {
-  await updateDoc(doc(db, 'gameState', matchId), updates)
+  const safeUpdates = { ...updates }
+  if (Object.prototype.hasOwnProperty.call(safeUpdates, 'board')) {
+    safeUpdates.board = encodeBoard(safeUpdates.board)
+  }
+  if (Object.prototype.hasOwnProperty.call(safeUpdates, 'winningCells')) {
+    safeUpdates.winningCells = encodeWinningCells(safeUpdates.winningCells)
+  }
+  await updateDoc(doc(db, 'gameState', matchId), safeUpdates)
 }
 
 export function subscribeToGameState(matchId, callback) {
   return onSnapshot(doc(db, 'gameState', matchId), (snap) => {
-    if (snap.exists()) callback(snap.data())
+    if (snap.exists()) {
+      const data = snap.data()
+      callback({
+        ...data,
+        board: decodeBoard(data.board),
+        winningCells: decodeWinningCells(data.winningCells),
+      })
+    }
     else callback(null)
   })
 }
