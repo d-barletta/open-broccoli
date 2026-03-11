@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import winAnimation from '../assets/animations/win.json'
@@ -10,6 +11,7 @@ import {
   initGameState, getAdminPublicSettings,
 } from '../services/firestoreService'
 import ModelSelector from '../components/ModelSelector'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 // ─── Board constants ──────────────────────────────────────────────────────────
 const ROWS = 6
@@ -113,6 +115,7 @@ function ConnectBoard({ board, lastMove, winningCells, bet1 = null, bet2 = null 
 function ThinkingPanel({ playerNum, username, model, thinking, isThinking, lastCol, large }) {
   const isP1 = playerNum === PLAYER_1
   const scrollRef = useRef(null)
+  const { t } = useTranslation()
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [thinking])
@@ -135,13 +138,13 @@ function ThinkingPanel({ playerNum, username, model, thinking, isThinking, lastC
         {isThinking && (
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium animate-pulse
             ${isP1 ? 'bg-red-500/20 text-red-300 border-red-400/50' : 'bg-yellow-500/20 text-yellow-300 border-yellow-400/50'}`}>
-            Thinking…
+            {t('game.thinking')}
           </span>
         )}
         {lastCol !== null && !isThinking && (
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
             ${isP1 ? 'bg-red-900/40 text-red-400 border-red-500/30' : 'bg-yellow-900/40 text-yellow-400 border-yellow-500/30'}`}>
-            Played col {lastCol + 1}
+            {t('game.playedCol', { col: lastCol + 1 })}
           </span>
         )}
       </div>
@@ -154,7 +157,7 @@ function ThinkingPanel({ playerNum, username, model, thinking, isThinking, lastC
           </p>
         ) : !isThinking && (
           <div className="flex items-center justify-center h-full min-h-[40px] text-gray-600 text-xs">
-            Waiting for turn…
+            {t('game.waitingForTurn')}
           </div>
         )}
       </div>
@@ -166,13 +169,14 @@ function ThinkingPanel({ playerNum, username, model, thinking, isThinking, lastC
 function BetSelector({ player, columnBet, onColumnBet, moveBet, onMoveBet }) {
   const isP1 = player === 1
   const accentText = isP1 ? 'text-red-400' : 'text-yellow-400'
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-4">
       <div>
         <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${accentText}`}>
-          💰 Bet: winning column?
+          {t('game.betColumnLabel')}
         </label>
-        <p className="text-gray-500 text-xs mb-2">Pick which column the final winning piece will land in.</p>
+        <p className="text-gray-500 text-xs mb-2">{t('game.betColumnDesc')}</p>
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: COLS }, (_, i) => i + 1).map(col => (
             <button
@@ -190,20 +194,20 @@ function BetSelector({ player, columnBet, onColumnBet, moveBet, onMoveBet }) {
           {columnBet !== null && (
             <button type="button" onClick={() => onColumnBet(null)}
               className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all">
-              Clear
+              {t('common.clear')}
             </button>
           )}
         </div>
         {columnBet !== null && (
-          <p className={`text-xs mt-1.5 ${accentText}`}>Betting on column {columnBet} 🎯</p>
+          <p className={`text-xs mt-1.5 ${accentText}`}>{t('game.bettingOnColumn', { col: columnBet })}</p>
         )}
       </div>
 
       <div>
         <label className={`text-xs font-bold uppercase tracking-widest block mb-1.5 ${accentText}`}>
-          🎲 Bet: number of moves?
+          {t('game.betMovesLabel')}
         </label>
-        <p className="text-gray-500 text-xs mb-2">Guess total moves ({MIN_MOVES}–{MAX_MOVES}). Closest wins!</p>
+        <p className="text-gray-500 text-xs mb-2">{t('game.betMovesDesc', { min: MIN_MOVES, max: MAX_MOVES })}</p>
         <div className="flex items-center gap-2">
           <button type="button"
             onClick={() => {
@@ -218,7 +222,7 @@ function BetSelector({ player, columnBet, onColumnBet, moveBet, onMoveBet }) {
             className={`h-9 w-28 bg-gray-800/60 border rounded-lg px-2 text-gray-100 text-sm
               focus:outline-none focus:ring-2 transition-all text-center
               ${isP1 ? 'border-red-500/40 focus:border-red-400 focus:ring-red-500/20' : 'border-yellow-500/40 focus:border-yellow-400 focus:ring-yellow-500/20'}`}>
-            <option value="">— pick —</option>
+            <option value="">{t('game.pickLabel')}</option>
             {Array.from({ length: MAX_MOVES - MIN_MOVES + 1 }, (_, i) => i + MIN_MOVES).map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
@@ -233,12 +237,12 @@ function BetSelector({ player, columnBet, onColumnBet, moveBet, onMoveBet }) {
           {moveBet !== null && (
             <button type="button" onClick={() => onMoveBet(null)}
               className="px-2 h-9 rounded-lg text-xs text-gray-500 bg-gray-800/40 border border-gray-700/40 hover:text-gray-300 transition-all">
-              Clear
+              {t('common.clear')}
             </button>
           )}
         </div>
         {moveBet !== null && (
-          <p className={`text-xs mt-1.5 ${accentText}`}>Betting on {moveBet} moves 🎲</p>
+          <p className={`text-xs mt-1.5 ${accentText}`}>{t('game.bettingOnMoves', { count: moveBet })}</p>
         )}
       </div>
     </div>
@@ -250,6 +254,7 @@ export default function MatchPage() {
   const { matchId } = useParams()
   const navigate = useNavigate()
   const { currentUser, userProfile, signInAsGuest, isAnonymous } = useAuth()
+  const { t } = useTranslation()
 
   const [match, setMatch] = useState(null)
   const [gameState, setGameState] = useState(null)
@@ -460,9 +465,9 @@ export default function MatchPage() {
         <div className="w-full max-w-lg bg-gray-900/80 border border-gray-700/60 rounded-3xl p-8 shadow-2xl">
           <div className="text-center mb-6">
             <div className="text-5xl mb-3">🔗</div>
-            <h1 className="text-2xl font-black text-white mb-2">Join Match {matchId}</h1>
+            <h1 className="text-2xl font-black text-white mb-2">{t('match.joinTitle', { id: matchId })}</h1>
             <p className="text-sm text-gray-400">
-              Sign in with your account, or enter a username to join this match as a guest.
+              {t('match.joinDesc')}
             </p>
           </div>
 
@@ -478,7 +483,7 @@ export default function MatchPage() {
               onClick={() => navigate(`/login?redirect=${encodeURIComponent(`/match/${matchId}`)}`)}
               className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-gray-900 font-black text-base rounded-xl transition-all duration-200 shadow-lg hover:shadow-yellow-500/20 active:scale-95"
             >
-              Sign In or Register
+              {t('common.signInOrRegister')}
             </button>
 
             <div className="relative flex items-center justify-center text-xs uppercase tracking-widest text-gray-600">
