@@ -30,6 +30,20 @@ const COLS = 7
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 const STREAM_WRITE_INTERVAL_MS = 800
 
+function normalizeBoard(input) {
+  const out = Array.from({ length: ROWS }, () => Array(COLS).fill(0))
+  if (!Array.isArray(input)) return out
+  for (let r = 0; r < ROWS; r++) {
+    const srcRow = input[r]
+    if (!Array.isArray(srcRow)) continue
+    for (let c = 0; c < COLS; c++) {
+      const v = srcRow[c]
+      out[r][c] = v === 1 || v === 2 ? v : 0
+    }
+  }
+  return out
+}
+
 function decodeBoard(storedBoard) {
   if (!Array.isArray(storedBoard)) return storedBoard
   if (storedBoard.length === 0) return storedBoard
@@ -63,6 +77,8 @@ function dropPiece(board, col, player) {
 }
 
 function checkWinner(board, row, col, player) {
+  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false
+  if (board[row][col] !== player) return false
   const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]]
   for (const [dr, dc] of dirs) {
     let count = 1
@@ -78,6 +94,8 @@ function checkWinner(board, row, col, player) {
 }
 
 function findWinningCells(board, row, col, player) {
+  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return []
+  if (board[row][col] !== player) return []
   const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]]
   for (const [dr, dc] of dirs) {
     const cells = [[row, col]]
@@ -291,7 +309,7 @@ export default async function handler(req, res) {
   if (!claimedState) return res.status(200).json({ ok: true, skipped: true })
 
   const playerNum = claimedState.currentPlayer
-  const board = decodeBoard(claimedState.board)
+  const board = normalizeBoard(decodeBoard(claimedState.board))
 
   // Prevent stale workers from overwriting a newer board state.
   async function guardedGameStateUpdate(updates) {
