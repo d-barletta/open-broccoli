@@ -678,7 +678,7 @@ export default function MatchPage() {
                   text-white font-black text-lg rounded-2xl transition-all duration-200
                   shadow-lg hover:shadow-green-500/30 active:scale-95"
               >
-                {savingConfig ? 'Saving…' : 'I\'m Ready! ✓'}
+                {savingConfig ? 'Saving…' : 'I\'m Ready'}
               </button>
             ) : (
               <button
