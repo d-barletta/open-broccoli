@@ -727,11 +727,11 @@ export default function MatchPage() {
               </div>
               <p className="text-gray-400 text-sm mt-3">Game over in {gs.moveCount || 0} moves</p>
               {!isSpectator && (
-                <p className={`text-sm mt-1 font-bold ${
+                <p className={`text-md mt-1 font-bold ${
                   (match.winner === 'player1' && myPlayerNum === 1) || (match.winner === 'player2' && myPlayerNum === 2)
                     ? 'text-green-400' : match.winner === 'draw' ? 'text-gray-400' : 'text-red-400'}`}>
                   {(match.winner === 'player1' && myPlayerNum === 1) || (match.winner === 'player2' && myPlayerNum === 2)
-                    ? '🏆 You won!' : match.winner === 'draw' ? "It's a draw!" : '😔 You lost.'}
+                    ? '🏆 You won!' : match.winner === 'draw' ? "It's a draw!" : '😔 You lost'}
                 </p>
               )}
             </div>
