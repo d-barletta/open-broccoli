@@ -638,7 +638,7 @@ export default function MatchPage() {
                   />
                 ) : (
                   <div className={`rounded-lg border px-3 py-2.5 text-sm ${isP1 ? 'border-red-500/30 bg-red-950/20 text-red-200' : 'border-yellow-500/30 bg-yellow-950/20 text-yellow-200'}`}>
-                    <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">🤖 AI Model (forced by admin)</div>
+                    <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">🤖 AI Model</div>
                     <div className="font-mono text-xs break-all">{forcedModel || selectedModel || '—'}</div>
                   </div>
                 )}
