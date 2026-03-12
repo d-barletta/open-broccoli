@@ -80,6 +80,9 @@ export function AuthProvider({ children }) {
     // Reserve username (fails if already taken due to security rules)
     await setDoc(usernameRef, { uid, username: trimmedUsername })
 
+    // Eagerly fetch profile so it is in state before the caller navigates away
+    await fetchUserProfile(uid)
+
     return credential
   }
 
@@ -133,6 +136,8 @@ export function AuthProvider({ children }) {
     const credential = await signInWithEmailAndPassword(auth, email, password)
     // Update last login
     await setDoc(doc(db, 'users', credential.user.uid), { lastLoginAt: serverTimestamp() }, { merge: true })
+    // Eagerly fetch profile so it is in state before the caller navigates away
+    await fetchUserProfile(credential.user.uid)
     return credential
   }
 
