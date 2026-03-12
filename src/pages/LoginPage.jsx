@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import PageFooter from '../components/PageFooter'
 
 export default function LoginPage() {
   const { login, register, isAnonymous, userProfile, logout } = useAuth()
@@ -221,14 +222,8 @@ export default function LoginPage() {
             </p>
           ) : null}
         </div>
-
-        <p className="text-center text-gray-700 text-xs mt-6">
-          {t('common.poweredBy')}{' '}
-          <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-500">
-            OpenRouter
-          </a>
-        </p>
       </div>
+      <PageFooter />
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { getUserMatches } from '../services/firestoreService'
-import LanguageSwitcher from '../components/LanguageSwitcher'
+import PageFooter from '../components/PageFooter'
 
 function toDate(value) {
   if (!value) return null
@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!currentUser?.uid) return
@@ -115,7 +116,9 @@ export default function DashboardPage() {
               {t('dashboard.title')}
             </span>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-3">
             {isAdmin && (
               <button
                 onClick={() => navigate('/admin')}
@@ -124,8 +127,7 @@ export default function DashboardPage() {
                 {t('common.admin')}
               </button>
             )}
-            <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
-            <LanguageSwitcher />
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
             <button
               onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium"
@@ -133,7 +135,45 @@ export default function DashboardPage() {
               {t('common.signOut')}
             </button>
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(v => !v)}
+            className="sm:hidden p-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 transition-all"
+            aria-label="Open menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            {isAdmin && (
+              <button
+                onClick={() => { navigate('/admin'); setMobileMenuOpen(false) }}
+                className="text-xs px-3 py-2 rounded-lg border bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-medium text-left"
+              >
+                {t('common.admin')}
+              </button>
+            )}
+            <button
+              onClick={() => { logout(); setMobileMenuOpen(false) }}
+              className="text-xs px-3 py-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium text-left"
+            >
+              {t('common.signOut')}
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-10">
@@ -222,6 +262,7 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+      <PageFooter />
     </div>
   )
 }

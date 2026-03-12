@@ -11,7 +11,7 @@ import {
   initGameState, getAdminPublicSettings,
 } from '../services/firestoreService'
 import ModelSelector from '../components/ModelSelector'
-import LanguageSwitcher from '../components/LanguageSwitcher'
+import PageFooter from '../components/PageFooter'
 
 // ─── Board constants ──────────────────────────────────────────────────────────
 const ROWS = 6
@@ -893,8 +893,10 @@ export default function MatchPage() {
 // ─── Helper components ─────────────────────────────────────────────────────────
 function MatchLayout({ matchId, navigate, children }) {
   const { userProfile, logout, isAdmin, isAnonymous } = useAuth()
+  const { t } = useTranslation()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   return (
-    <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black">
+    <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black flex flex-col">
       <header className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -904,38 +906,81 @@ function MatchLayout({ matchId, navigate, children }) {
             </button>
             {matchId && (
               <span className="text-xs px-2 py-1 bg-gray-800/60 border border-gray-700/40 text-gray-500 rounded-lg font-mono">
-                Match: {matchId}
+                {t('match.matchLabel', { id: matchId })}
               </span>
             )}
             {isAnonymous && (
               <span className="text-xs px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 rounded-lg font-medium">
-                Guest: {userProfile?.username || 'anonymous'}
+                {t('match.guestLabel', { username: userProfile?.username || 'anonymous' })}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-3">
             {!isAnonymous && isAdmin && (
               <button onClick={() => navigate('/admin')}
                 className="text-xs px-3 py-1.5 rounded-lg border bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-medium">
-                ⚙ Admin
+                {t('common.admin')}
               </button>
             )}
             {isAnonymous ? (
               <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(matchId ? `/match/${matchId}` : '/')}`)}
                 className="text-xs px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium">
-                Sign In/Up
+                {t('common.signInUp')}
               </button>
             ) : (
-              <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
+              <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
             )}
             <button onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all">
-              Sign Out
+              {t('common.signOut')}
             </button>
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(v => !v)}
+            className="sm:hidden p-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 transition-all"
+            aria-label="Open menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
+            {!isAnonymous && <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>}
+            {!isAnonymous && isAdmin && (
+              <button onClick={() => { navigate('/admin'); setMobileMenuOpen(false) }}
+                className="text-xs px-3 py-2 rounded-lg border bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-medium text-left">
+                {t('common.admin')}
+              </button>
+            )}
+            {isAnonymous && (
+              <button onClick={() => { navigate(`/login?redirect=${encodeURIComponent(matchId ? `/match/${matchId}` : '/')}`); setMobileMenuOpen(false) }}
+                className="text-xs px-3 py-2 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium text-left">
+                {t('common.signInUp')}
+              </button>
+            )}
+            <button onClick={() => { logout(); setMobileMenuOpen(false) }}
+              className="text-xs px-3 py-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium text-left">
+              {t('common.signOut')}
+            </button>
+          </div>
+        )}
       </header>
-      <main>{children}</main>
+      <main className="flex-1">{children}</main>
+      <PageFooter />
     </div>
   )
 }

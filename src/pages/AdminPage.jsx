@@ -7,7 +7,7 @@ import {
   getAdminSecretSettings, saveAdminSecretSettings,
   getAllUsers, updateUserAdmin, getAllMatches,
 } from '../services/firestoreService'
-import LanguageSwitcher from '../components/LanguageSwitcher'
+import PageFooter from '../components/PageFooter'
 
 const TABS = ['settings', 'users', 'matches']
 
@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('settings')
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [error, setError] = useState(null)
 
   // Settings tab
@@ -161,15 +162,46 @@ export default function AdminPage() {
               {t('admin.badge')}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 hidden sm:block">👤 {userProfile?.username}</span>
-            <LanguageSwitcher />
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-3">
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
             <button onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all">
               {t('common.signOut')}
             </button>
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(v => !v)}
+            className="sm:hidden p-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 transition-all"
+            aria-label="Open menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            <button
+              onClick={() => { logout(); setMobileMenuOpen(false) }}
+              className="text-xs px-3 py-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium text-left"
+            >
+              {t('common.signOut')}
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
@@ -452,6 +484,7 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+      <PageFooter />
     </div>
   )
 }
