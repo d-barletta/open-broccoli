@@ -805,7 +805,7 @@ export default function MatchPage() {
             <div className="flex items-center justify-center gap-3 mb-2">
               <span className="text-3xl">🔴</span>
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-                Connect 4
+                {t('game.title')}
               </h1>
               <span className="text-3xl">🟡</span>
             </div>

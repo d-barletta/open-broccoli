@@ -2,7 +2,7 @@
   "common": {
     "signOut": "Esci",
     "admin": "⚙ Admin",
-    "myDashboard": "La Mia Dashboard",
+    "myDashboard": "Dashboard",
     "poweredBy": "Powered by",
     "yourConfigIsPrivate": "La tua config è privata",
     "loading": "Caricamento…",
@@ -16,7 +16,7 @@
     "signInOrRegister": "Accedi o Registrati",
     "signInUp": "Accedi/Registrati",
     "backToHome": "← Torna alla Home",
-    "openMatch": "Partita Aperta",
+    "openMatch": "Guarda partita",
     "newMatch": "Nuova Partita",
     "or": "o",
     "orJoinAsGuest": "o entra come ospite",
@@ -25,7 +25,7 @@
     "copyLink": "🔗 Copia Link"
   },
   "home": {
-    "heroTitle": "Connect 4",
+    "heroTitle": "Forza 4",
     "heroTagline": "Sfida un amico! Ogni giocatore istruisce la propria IA e fa scommesse — poi guarda la battaglia in diretta.",
     "welcomeBack": "Bentornato, {{username}}!",
     "gamesPlayed": "{{count}} partita giocata",
@@ -54,7 +54,7 @@
     "stepPlayDesc": "Guarda le IA combattere in diretta — vince la scommessa migliore!"
   },
   "login": {
-    "tagline": "Connect 4 con IA — Multiplayer Online",
+    "tagline": "Forza 4 con IA — Multiplayer Online",
     "upgradeGuestTagline": "Aggiorna la sessione ospite per {{username}} e mantieni le tue partite",
     "signInTab": "Accedi",
     "registerTab": "Registrati",
@@ -183,8 +183,8 @@
     "loading": "Caricamento…"
   },
   "game": {
-    "title": "Connect 4",
-    "setupDesc": "Configura due IA e guardile combattere sulla scacchiera di Connect 4! Ogni giocatore istruisce la propria IA su come giocare, poi che inizi la partita.",
+    "title": "Forza 4",
+    "setupDesc": "Configura due IA e guardile combattere sulla scacchiera di Forza 4! Ogni giocatore istruisce la propria IA su come giocare, poi che inizi la partita.",
     "configureAI": "Configura la tua IA",
     "modelLabel": "🤖 Modello",
     "instructionsLabel": "Istruzioni per l'IA",
