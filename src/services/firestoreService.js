@@ -39,6 +39,12 @@ function decodeWinningCells(storedCells) {
   return storedCells
 }
 
+// ─── AI player constants ──────────────────────────────────────────────────────
+// Special sentinel UID used for the AI opponent in vs-AI matches.
+// This value is also referenced in api/ai-move.js (keep in sync).
+export const AI_PLAYER_UID = '__ai__'
+export const AI_PLAYER_USERNAME = '🤖 AI'
+
 // ─── ID generator ─────────────────────────────────────────────────────────────
 function generateMatchId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -68,6 +74,36 @@ export async function createMatch(player1Uid, player1Username) {
     player1Ready: false,
     player2Uid: null,
     player2Username: null,
+    player2Ready: false,
+    winner: null,
+    winnerUsername: null,
+    moveCount: null,
+    createdAt: serverTimestamp(),
+    startedAt: null,
+    finishedAt: null,
+    player1Model: null,
+    player2Model: null,
+    player1ColumnBet: null,
+    player2ColumnBet: null,
+    player1MoveBet: null,
+    player2MoveBet: null,
+  })
+  return matchId
+}
+
+// Creates a vs-AI match: player 2 is an AI bot that auto-configures at setup time.
+export async function createVsAiMatch(player1Uid, player1Username) {
+  const matchId = await generateUniqueMatchId()
+  const matchRef = doc(db, 'matches', matchId)
+  await setDoc(matchRef, {
+    id: matchId,
+    status: 'setup',
+    isVsAi: true,
+    player1Uid,
+    player1Username,
+    player1Ready: false,
+    player2Uid: AI_PLAYER_UID,
+    player2Username: AI_PLAYER_USERNAME,
     player2Ready: false,
     winner: null,
     winnerUsername: null,

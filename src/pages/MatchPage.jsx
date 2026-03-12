@@ -9,6 +9,7 @@ import {
   setPlayerReady, setPlayerNotReady,
   savePrivateConfig,
   initGameState, getAdminPublicSettings,
+  AI_PLAYER_UID,
 } from '../services/firestoreService'
 import ModelSelector from '../components/ModelSelector'
 import PageFooter from '../components/PageFooter'
@@ -32,6 +33,13 @@ function nextMoveBetStep(current, dir, forbidden) {
   let v = current + dir
   if (v === forbidden) v += dir
   return Math.min(MAX_MOVES, Math.max(MIN_MOVES, v))
+}
+
+function generateRandomBets() {
+  return {
+    columnBet: Math.floor(Math.random() * COLS) + 1,
+    moveBet: Math.floor(Math.random() * (MAX_MOVES - MIN_MOVES + 1)) + MIN_MOVES,
+  }
 }
 
 // ─── UI components ─────────────────────────────────────────────────────────────
@@ -489,6 +497,22 @@ export default function MatchPage() {
       })
       await setPlayerReady(matchId, myPlayerNum, { model: modelToUse, columnBet, moveBet })
       setIsReady(true)
+
+      // For vs-AI matches, auto-configure and ready the AI player 2
+      if (match.isVsAi && myPlayerNum === 1) {
+        const aiModel = forceSameModel ? forcedModel : DEFAULT_MODEL_2
+        const { columnBet: aiColumnBet, moveBet: aiMoveBet } = generateRandomBets()
+        // The uid must be currentUser.uid so Firestore security rules allow the write.
+        // api/ai-move.js reads this config via Admin SDK (bypasses rules) so the model
+        // and instructions are correctly applied regardless of the uid field.
+        await savePrivateConfig(matchId, 2, currentUser.uid, {
+          model: aiModel,
+          instructions: '',
+          columnBet: aiColumnBet,
+          moveBet: aiMoveBet,
+        })
+        await setPlayerReady(matchId, 2, { model: aiModel, columnBet: aiColumnBet, moveBet: aiMoveBet })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -500,6 +524,10 @@ export default function MatchPage() {
     if (!myPlayerNum) return
     try {
       await setPlayerNotReady(matchId, myPlayerNum)
+      // For vs-AI matches, also reset the AI player 2's ready state
+      if (match.isVsAi && myPlayerNum === 1) {
+        await setPlayerNotReady(matchId, 2)
+      }
       setIsReady(false)
     } catch (err) {
       setError(err.message)
@@ -658,6 +686,9 @@ export default function MatchPage() {
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="text-3xl">{isP1 ? '🔴' : '🟡'}</span>
               <h2 className="text-2xl font-black text-white">Configure Your AI</h2>
+              {match.isVsAi && (
+                <span className="ml-2 text-xs px-2 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold">🤖 vs AI</span>
+              )}
             </div>
             <p className="text-gray-400 text-sm">
               Your setup is <strong className="text-yellow-300">private</strong> — your opponent can't see your instructions.
@@ -665,21 +696,35 @@ export default function MatchPage() {
           </div>
 
           {/* Opponent status */}
-          <div className={`flex gap-3 rounded-xl p-4 mb-6 border ${
-            theirReady
-              ? 'bg-green-950/30 border-green-500/30'
-              : 'bg-gray-900/60 border-gray-700/50'
-          }`}>
-            <span className="text-lg">{isP1 ? '🟡' : '🔴'}</span>
-            <div>
-              <div className="text-sm font-bold text-gray-300">
-                {isP1 ? match.player2Username : match.player1Username} (Opponent)
-              </div>
-              <div className={`text-xs ${theirReady ? 'text-green-400' : 'text-gray-500'}`}>
-                {theirReady ? '✓ Ready!' : 'Still configuring…'}
+          {match.isVsAi ? (
+            <div className="flex gap-3 rounded-xl p-4 mb-6 border bg-purple-950/30 border-purple-500/30">
+              <span className="text-lg">🤖</span>
+              <div>
+                <div className="text-sm font-bold text-purple-300">
+                  {match.player2Username} (AI Opponent)
+                </div>
+                <div className="text-xs text-gray-500">
+                  {myReady ? '✓ Auto-configured!' : 'Will auto-configure when you confirm'}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className={`flex gap-3 rounded-xl p-4 mb-6 border ${
+              theirReady
+                ? 'bg-green-950/30 border-green-500/30'
+                : 'bg-gray-900/60 border-gray-700/50'
+            }`}>
+              <span className="text-lg">{isP1 ? '🟡' : '🔴'}</span>
+              <div>
+                <div className="text-sm font-bold text-gray-300">
+                  {isP1 ? match.player2Username : match.player1Username} (Opponent)
+                </div>
+                <div className={`text-xs ${theirReady ? 'text-green-400' : 'text-gray-500'}`}>
+                  {theirReady ? '✓ Ready!' : 'Still configuring…'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* My setup form */}
           {!myReady ? (
