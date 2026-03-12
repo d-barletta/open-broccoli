@@ -4,30 +4,21 @@
 
 🔗 **[Live Demo → https://d-barletta.github.io/open-broccoli/](https://d-barletta.github.io/open-broccoli/)**
 
-## Screenshots
-
-**Login Page**
-
-![Login Page](https://github.com/user-attachments/assets/70f26a57-65c0-4931-940e-4e1897dd5247)
-
-**Register Page**
-
-![Register Page](https://github.com/user-attachments/assets/c4c369be-87c0-45ab-877a-66d7cc615dcc)
-
 ## Features
 
 - 🎮 **Online Multiplayer Connect 4** — create a match and share the link with a friend
+- 🤖 **Play vs AI** — challenge an AI opponent solo, no human opponent needed; the AI player is auto-configured when you confirm ready
 - 🔒 **Private AI Configuration** — each player secretly instructs their AI (opponent never sees your strategy)
 - 💰 **Betting System** — predict the winning column and total move count before the game starts
 - 👤 **User Accounts** — register with a unique username, track wins and games played
-- 🤖 **Model Selection** — admin configures which OpenRouter models are available to players
-- ⚙ **Admin Dashboard** — manage users, set the shared API key, configure available models, view match stats
+- 🌍 **Multilingual** — UI available in English, Italian, French, Spanish, and German
+- ⚙ **Admin Dashboard** — manage users, set the shared API key, configure available models, view match stats and LLM usage
 
 ## How It Works
 
-1. **Create Match** — Player 1 creates a game and copies the shareable link
-2. **Share** — Send the link to your opponent (Player 2)
-3. **Setup (Private)** — Each player independently chooses their AI model, writes secret instructions, and places bets. The opponent **never** sees your instructions.
+1. **Create Match** — Player 1 creates a game and copies the shareable link (or use **Play vs AI** to skip waiting for a human opponent)
+2. **Share** — Send the link to your opponent (Player 2) — or skip this step for vs-AI matches
+3. **Setup (Private)** — Each player independently chooses their AI model, writes secret instructions, and places bets. The opponent **never** sees your instructions. In vs-AI mode, the AI opponent is auto-configured when you confirm ready.
 4. **Play** — When both players confirm ready, the game starts. **All AI calls are made server-side** (Vercel Function by default) using the admin's OpenRouter API key — the key is never exposed to players' browsers.
 5. **Results** — Both players watch the live board and thinking panels update in real-time. At the end, see the winner and how close your bets were.
 
@@ -214,9 +205,10 @@ With this approach, use GitHub Pages for the frontend (the existing `.github/wor
 
 | Section | Features |
 |---------|----------|
-| **Settings** | Set shared OpenRouter API key (server-side only), configure available models for players |
-| **Users** | View all users, ban/unban, grant/revoke admin |
+| **Settings** | Set shared OpenRouter API key (server-side only), configure available models, force a single model for all players, enable free-tier routing |
+| **Users** | View all users, ban/unban, grant/revoke admin, delete accounts |
 | **Matches** | Stats overview + full match table (status, players, winner, move count) |
+| **LLM Stats** | Aggregate token usage across all matches, breakdown by model |
 
 ## Tech Stack
 

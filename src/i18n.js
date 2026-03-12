@@ -18,7 +18,6 @@ i18n
       es: { translation: es },
       de: { translation: de },
     },
-    compatibilityJSON: 'v3',
     fallbackLng: 'en',
     supportedLngs: ['en', 'it', 'fr', 'es', 'de'],
     detection: {
