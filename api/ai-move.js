@@ -464,16 +464,16 @@ Pick only from the available columns listed above.`
   const thinkingKey = `player${playerNum}LastThinking`
 
   try {
-    const result = await callOpenRouter({
+    const llmResponse = await callOpenRouter({
       apiKey,
       model: modelToUse,
       systemPrompt,
       userMsg,
       gsRef,
     })
-    fullResponse = result.fullContent
+    fullResponse = llmResponse.fullContent
     // Record token usage asynchronously (does not block game flow)
-    recordLlmUsage(db, modelToUse, result.usage).catch(() => {})
+    recordLlmUsage(db, modelToUse, llmResponse.usage).catch(() => {})
   } catch (err) {
     await gsRef.update({
       isThinking: false,

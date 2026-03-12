@@ -58,7 +58,7 @@ function isValidModelId(model) {
   // Model IDs look like "provider/model-name" or "provider/model-name:free"
   return typeof model === 'string'
     && /^[\w.\-:]+\/[\w.\-:]+$/.test(model)
-    && model.length <= 120
+    && model.length <= 110
 }
 
 // Encode a model ID for use as a Firestore document ID (/ is not allowed).
