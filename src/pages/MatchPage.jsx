@@ -930,7 +930,7 @@ function MatchLayout({ matchId, navigate, children }) {
                 {t('common.signInUp')}
               </button>
             ) : (
-              <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+              <span className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium">👤 {userProfile?.username}</span>
             )}
             <button onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all">
@@ -959,7 +959,7 @@ function MatchLayout({ matchId, navigate, children }) {
         {/* Mobile dropdown */}
         {mobileMenuOpen && (
           <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
-            {!isAnonymous && <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>}
+            {!isAnonymous && <span className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium">👤 {userProfile?.username}</span>}
             {!isAnonymous && isAdmin && (
               <button onClick={() => { navigate('/admin'); setMobileMenuOpen(false) }}
                 className="text-xs px-3 py-2 rounded-lg border bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-medium text-left">

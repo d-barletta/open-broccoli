@@ -165,7 +165,7 @@ export default function AdminPage() {
 
           {/* Desktop nav */}
           <div className="hidden sm:flex items-center gap-3">
-            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            <span className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium">👤 {userProfile?.username}</span>
             <button onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all">
               {t('common.signOut')}
@@ -193,7 +193,7 @@ export default function AdminPage() {
         {/* Mobile dropdown */}
         {mobileMenuOpen && (
           <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
-            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            <span className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium">👤 {userProfile?.username}</span>
             <button
               onClick={() => { logout(); setMobileMenuOpen(false) }}
               className="text-xs px-3 py-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium text-left"
