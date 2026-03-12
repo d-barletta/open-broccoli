@@ -4,6 +4,12 @@
   "functions": {
     "api/ai-move.js": {
       "maxDuration": 60
+    },
+    "api/chat.js": {
+      "maxDuration": 60
+    },
+    "api/models.js": {
+      "maxDuration": 30
     }
   }
 }

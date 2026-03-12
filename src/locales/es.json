@@ -85,14 +85,6 @@
     "errorPasswordMin": "La contraseña debe tener al menos 6 caracteres.",
     "errorSomethingWrong": "Algo salió mal. Por favor inténtalo de nuevo."
   },
-  "apiKey": {
-    "title": "Clave API de OpenRouter",
-    "description": "Tu clave se almacena solo en el localStorage de tu navegador y nunca se envía a ningún lugar excepto a OpenRouter.",
-    "getKey": "Obtener una clave →",
-    "save": "Guardar",
-    "saved": "✓ Guardada",
-    "clearTitle": "Borrar clave API"
-  },
   "modelSelector": {
     "all": "Todos",
     "free": "🆓 Gratis",
@@ -198,7 +190,6 @@
     "bettingOnMoves": "Apostando por {{count}} movimientos 🎲",
     "taken": "(ocupado)",
     "startGame": "¡Iniciar partida!",
-    "noApiKeyWarn": "⚠ Ingresa tu clave API de OpenRouter en el encabezado para comenzar",
     "placeBetsWarn": "⚠ Ambos jugadores deben hacer una apuesta de columna y una apuesta de movimientos para comenzar",
     "gamePaused": "Partida en pausa",
     "playerThinking": " El Jugador {{player}} está pensando…",
@@ -233,8 +224,7 @@
     "closestOffBy": "¡El más cercano! Diferencia de {{count}} 🎯",
     "offByMoves": "Diferencia de {{count}} movimiento",
     "offByMoves_plural": "Diferencia de {{count}} movimientos",
-    "gameStarting": "La partida está comenzando…",
-    "apiKeyRequired": "Por favor, primero configura tu clave API de OpenRouter."
+    "gameStarting": "La partida está comenzando…"
   },
   "match": {
     "joinTitle": "Unirse a la partida {{id}}",

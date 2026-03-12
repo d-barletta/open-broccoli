@@ -85,14 +85,6 @@
     "errorPasswordMin": "Password must be at least 6 characters.",
     "errorSomethingWrong": "Something went wrong. Please try again."
   },
-  "apiKey": {
-    "title": "OpenRouter API Key",
-    "description": "Your key is stored only in your browser's localStorage and never sent anywhere except OpenRouter.",
-    "getKey": "Get a key →",
-    "save": "Save",
-    "saved": "✓ Saved",
-    "clearTitle": "Clear API key"
-  },
   "modelSelector": {
     "all": "All",
     "free": "🆓 Free",
@@ -198,7 +190,6 @@
     "bettingOnMoves": "Betting on {{count}} moves 🎲",
     "taken": "(taken)",
     "startGame": "Start Game!",
-    "noApiKeyWarn": "⚠ Enter your OpenRouter API key in the header to start",
     "placeBetsWarn": "⚠ Both players must place a column bet and a move-count bet to start",
     "gamePaused": "Game paused",
     "playerThinking": " Player {{player}} is thinking…",
@@ -233,8 +224,7 @@
     "closestOffBy": "Closest! Off by {{count}} 🎯",
     "offByMoves": "Off by {{count}} move",
     "offByMoves_plural": "Off by {{count}} moves",
-    "gameStarting": "Game starting…",
-    "apiKeyRequired": "Please set your OpenRouter API key first."
+    "gameStarting": "Game starting…"
   },
   "match": {
     "joinTitle": "Join Match {{id}}",

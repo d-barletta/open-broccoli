@@ -85,14 +85,6 @@
     "errorPasswordMin": "Das Passwort muss mindestens 6 Zeichen lang sein.",
     "errorSomethingWrong": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   },
-  "apiKey": {
-    "title": "OpenRouter API-Schlüssel",
-    "description": "Dein Schlüssel wird nur im localStorage deines Browsers gespeichert und nirgendwo außer zu OpenRouter gesendet.",
-    "getKey": "Einen Schlüssel erhalten →",
-    "save": "Speichern",
-    "saved": "✓ Gespeichert",
-    "clearTitle": "API-Schlüssel löschen"
-  },
   "modelSelector": {
     "all": "Alle",
     "free": "🆓 Kostenlos",
@@ -198,7 +190,6 @@
     "bettingOnMoves": "Wette auf {{count}} Züge 🎲",
     "taken": "(belegt)",
     "startGame": "Spiel starten!",
-    "noApiKeyWarn": "⚠ Gib deinen OpenRouter API-Schlüssel in der Kopfzeile ein, um zu starten",
     "placeBetsWarn": "⚠ Beide Spieler müssen eine Spaltenwette und eine Zuganzahlwette abgeben, um zu starten",
     "gamePaused": "Spiel pausiert",
     "playerThinking": " Spieler {{player}} denkt nach…",
@@ -233,8 +224,7 @@
     "closestOffBy": "Am nächsten! Abweichung: {{count}} 🎯",
     "offByMoves": "Abweichung: {{count}} Zug",
     "offByMoves_plural": "Abweichung: {{count}} Züge",
-    "gameStarting": "Spiel startet…",
-    "apiKeyRequired": "Bitte setze zuerst deinen OpenRouter API-Schlüssel."
+    "gameStarting": "Spiel startet…"
   },
   "match": {
     "joinTitle": "Spiel {{id}} beitreten",
