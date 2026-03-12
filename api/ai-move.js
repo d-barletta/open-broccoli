@@ -424,10 +424,8 @@ export default async function handler(req, res) {
   const useOpenRouterFree = publicSettings.useOpenRouterFree === true
 
   let modelToUse = (forceSameModel && forcedModel) ? forcedModel : config.model
-  // Apply free mode: append :free suffix if not already present
-  if (modelToUse && useOpenRouterFree && !modelToUse.includes(':')) {
-    modelToUse = `${modelToUse}:free`
-  }
+  // Apply free mode: route all calls through openrouter/free when enabled.
+  if (useOpenRouterFree) modelToUse = 'openrouter/free'
 
   if (!modelToUse) {
     await gsRef.update({

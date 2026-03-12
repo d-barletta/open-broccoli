@@ -343,9 +343,8 @@ export const processAiMove = onDocumentWritten(
     const useOpenRouterFree = publicSettings.useOpenRouterFree === true
 
     let modelToUse = (forceSameModel && forcedModel) ? forcedModel : config.model
-    if (modelToUse && useOpenRouterFree && !modelToUse.includes(':')) {
-      modelToUse = `${modelToUse}:free`
-    }
+    // Apply free mode: route all calls through openrouter/free when enabled.
+    if (useOpenRouterFree) modelToUse = 'openrouter/free'
 
     if (!modelToUse) {
       await gsRef.update({

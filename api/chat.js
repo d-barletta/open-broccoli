@@ -55,7 +55,7 @@ function sanitizeInstructions(value) {
 }
 
 function isValidModelId(model) {
-  // Model IDs look like "provider/model-name" or "provider/model-name:free"
+  // Model IDs look like "provider/model-name", e.g. "openai/gpt-4o-mini"
   return typeof model === 'string'
     && /^[\w.\-:]+\/[\w.\-:]+$/.test(model)
     && model.length <= 110
@@ -243,12 +243,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid model ID.' })
   }
 
-  // Apply free mode: append :free suffix if the admin setting is enabled and
-  // the model doesn't already have a variant suffix.
+  // Apply free mode: route all calls through openrouter/free when enabled.
   const useOpenRouterFree = publicSnap.data()?.useOpenRouterFree === true
-  const model = useOpenRouterFree && !modelRaw.includes(':')
-    ? `${modelRaw}:free`
-    : modelRaw
+  const model = useOpenRouterFree ? 'openrouter/free' : modelRaw
 
   const maxTokens = Math.min(
     typeof maxTokensRaw === 'number' && maxTokensRaw > 0 ? maxTokensRaw : DEFAULT_MAX_TOKENS,
