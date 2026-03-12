@@ -30,7 +30,7 @@
     "welcomeBack": "Bentornato, {{username}}!",
     "gamesPlayed": "{{count}} partita giocata",
     "gamesPlayed_plural": "{{count}} partite giocate",
-    "gamesWon": "{{count}} vinta",
+    "gamesWon": "{{count}} vinte",
     "dashboardHint": "Usa La Mia Dashboard per rivedere le tue partite e vedere se ognuna è stata vinta, persa, pareggiata o è ancora in corso.",
     "createMatchTitle": "Crea Partita",
     "createMatchDesc": "Inizia una nuova partita come Giocatore 1. Riceverai un link da condividere con il tuo avversario.",
