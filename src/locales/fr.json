@@ -224,7 +224,10 @@
     "closestOffBy": "Le plus proche ! Écart de {{count}} 🎯",
     "offByMoves": "Écart de {{count}} coup",
     "offByMoves_plural": "Écart de {{count}} coups",
-    "gameStarting": "La partie commence…"
+    "gameStarting": "La partie commence…",
+    "matchScoreTitle": "⭐ Score du match",
+    "matchScoreFormula": "Victoire +1 000 pts · Écart colonne ×10 · Écart coups ×1",
+    "matchScorePts": "pts ce match"
   },
   "match": {
     "joinTitle": "Rejoindre la partie {{id}}",

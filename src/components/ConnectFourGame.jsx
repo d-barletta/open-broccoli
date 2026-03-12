@@ -929,6 +929,54 @@ export default function ConnectFourGame({ models, modelsLoading }) {
           )
         })()}
 
+        {/* Match Scores */}
+        {(bet1 !== null || bet2 !== null || moveBet1 !== null || moveBet2 !== null) && (() => {
+          const winCol = winner !== 'draw' && lastMove ? lastMove.col + 1 : null
+          const score1 = (winner === PLAYER_1 ? 1000 : 0)
+            - (winCol !== null && bet1 !== null ? Math.abs(bet1 - winCol) * 10 : 0)
+            - (moveBet1 !== null ? Math.abs(moveBet1 - moveCount) : 0)
+          const score2 = (winner === PLAYER_2 ? 1000 : 0)
+            - (winCol !== null && bet2 !== null ? Math.abs(bet2 - winCol) * 10 : 0)
+            - (moveBet2 !== null ? Math.abs(moveBet2 - moveCount) : 0)
+          const maxScore = Math.max(score1, score2)
+          const isTie = score1 === score2
+          return (
+            <div className="bg-gray-900/80 border border-yellow-500/30 rounded-xl p-5">
+              <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400 mb-1 text-center">
+                {t('game.matchScoreTitle')}
+              </h3>
+              <p className="text-center text-xs text-gray-500 mb-4">
+                {t('game.matchScoreFormula')}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {[
+                  { label: t('common.player1'), emoji: '🔴', score: score1 },
+                  { label: t('common.player2'), emoji: '🟡', score: score2 },
+                ].map(({ label, emoji, score }) => {
+                  const isTop = score === maxScore
+                  const isScoreWinner = isTop && !isTie
+                  return (
+                    <div key={label} className={`flex-1 rounded-xl px-5 py-4 text-center border transition-all
+                      ${isTie
+                        ? 'bg-gray-800/60 border-gray-600/40 text-gray-300'
+                        : isScoreWinner
+                          ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-200 shadow-lg shadow-yellow-900/30'
+                          : 'bg-gray-800/40 border-gray-700/40 text-gray-400'
+                      }`}>
+                      <div className="text-2xl mb-1">{isTie ? '🤝' : isScoreWinner ? '🏆' : '·'}</div>
+                      <div className="font-bold text-sm mb-2">{emoji} {label}</div>
+                      <div className={`text-2xl font-black tabular-nums ${score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {score > 0 ? '+' : ''}{score.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{t('game.matchScorePts')}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Lottie celebration */}
         {lottieData && winner !== 'draw' && (
           <div className="flex justify-center">

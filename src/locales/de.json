@@ -224,7 +224,10 @@
     "closestOffBy": "Am nächsten! Abweichung: {{count}} 🎯",
     "offByMoves": "Abweichung: {{count}} Zug",
     "offByMoves_plural": "Abweichung: {{count}} Züge",
-    "gameStarting": "Spiel startet…"
+    "gameStarting": "Spiel startet…",
+    "matchScoreTitle": "⭐ Spielpunkte",
+    "matchScoreFormula": "Sieg +1.000 Pkt. · Spaltenabw. ×10 · Zugabw. ×1",
+    "matchScorePts": "Pkt. dieses Spiel"
   },
   "match": {
     "joinTitle": "Spiel {{id}} beitreten",

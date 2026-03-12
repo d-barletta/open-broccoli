@@ -224,7 +224,10 @@
     "closestOffBy": "Closest! Off by {{count}} 🎯",
     "offByMoves": "Off by {{count}} move",
     "offByMoves_plural": "Off by {{count}} moves",
-    "gameStarting": "Game starting…"
+    "gameStarting": "Game starting…",
+    "matchScoreTitle": "⭐ Match Score",
+    "matchScoreFormula": "Win +1,000 pts · Column off ×10 · Move off ×1",
+    "matchScorePts": "pts this match"
   },
   "match": {
     "joinTitle": "Join Match {{id}}",

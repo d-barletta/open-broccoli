@@ -203,8 +203,25 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
   return fullContent
 }
 
+// ─── Score calculation ────────────────────────────────────────────────────────
+// Formula (per match):
+//   base   = won ? 1000 : 0
+//   minus  |columnBet - winCol| * 10   (only when there is a winning column)
+//   minus  |moveBet   - moveCount|
+function calcMatchScore(won, columnBet, winCol, moveBet, moveCount) {
+  let score = won ? 1000 : 0
+  if (winCol !== null && winCol !== undefined && columnBet !== null && columnBet !== undefined) {
+    score -= Math.abs(columnBet - winCol) * 10
+  }
+  if (moveBet !== null && moveBet !== undefined && moveCount !== null && moveCount !== undefined) {
+    score -= Math.abs(moveBet - moveCount)
+  }
+  return score
+}
+
 // ─── Player stats helper ──────────────────────────────────────────────────────
-async function updatePlayerStats(db, matchId, winnerPlayerNum) {
+// scoreData: { player1Score, player2Score }  (optional — omit for backwards compat)
+async function updatePlayerStats(db, matchId, winnerPlayerNum, scoreData = {}) {
   try {
     const matchRef = db.doc(`matches/${matchId}`)
     await db.runTransaction(async (tx) => {
@@ -215,10 +232,13 @@ async function updatePlayerStats(db, matchId, winnerPlayerNum) {
       // Idempotency guard: retries or concurrent workers must not double-count stats.
       if (matchData.statsApplied === true) return
 
+      const { player1Score, player2Score } = scoreData
+
       if (matchData.player1Uid) {
         const ref = db.doc(`users/${matchData.player1Uid}`)
         const updates = { matchesPlayed: FieldValue.increment(1) }
         if (winnerPlayerNum === 1) updates.matchesWon = FieldValue.increment(1)
+        if (player1Score !== undefined) updates.totalScore = FieldValue.increment(player1Score)
         tx.set(ref, updates, { merge: true })
       }
 
@@ -226,13 +246,15 @@ async function updatePlayerStats(db, matchId, winnerPlayerNum) {
         const ref = db.doc(`users/${matchData.player2Uid}`)
         const updates = { matchesPlayed: FieldValue.increment(1) }
         if (winnerPlayerNum === 2) updates.matchesWon = FieldValue.increment(1)
+        if (player2Score !== undefined) updates.totalScore = FieldValue.increment(player2Score)
         tx.set(ref, updates, { merge: true })
       }
 
-      tx.update(matchRef, {
-        statsApplied: true,
-        statsAppliedAt: FieldValue.serverTimestamp(),
-      })
+      // Persist per-match scores on the match document (idempotent within this tx)
+      const matchScoreUpdate = { statsApplied: true, statsAppliedAt: FieldValue.serverTimestamp() }
+      if (player1Score !== undefined) matchScoreUpdate.player1Score = player1Score
+      if (player2Score !== undefined) matchScoreUpdate.player2Score = player2Score
+      tx.update(matchRef, matchScoreUpdate)
     })
   } catch (err) {
     console.warn(`[ai-move] Stats update failed for match ${matchId}:`, err.message)
@@ -432,14 +454,21 @@ Pick only from the available columns listed above.`
       currentThinkingText: '',
     })
     if (!applied) return res.status(200).json({ ok: true, skipped: true })
+
+    const matchSnap0 = await db.doc(`matches/${matchId}`).get()
+    const matchData0 = matchSnap0.data() || {}
+    const mc0 = claimedState.moveCount
+    const p1Score0 = calcMatchScore(false, matchData0.player1ColumnBet, null, matchData0.player1MoveBet, mc0)
+    const p2Score0 = calcMatchScore(false, matchData0.player2ColumnBet, null, matchData0.player2MoveBet, mc0)
+
     await db.doc(`matches/${matchId}`).update({
       winner: 'draw',
       winnerUsername: null,
-      moveCount: claimedState.moveCount,
+      moveCount: mc0,
       status: 'finished',
       finishedAt: FieldValue.serverTimestamp(),
     })
-    await updatePlayerStats(db, matchId, null)
+    await updatePlayerStats(db, matchId, null, { player1Score: p1Score0, player2Score: p2Score0 })
     return res.status(200).json({ ok: true })
   }
 
@@ -470,6 +499,9 @@ Pick only from the available columns listed above.`
     const matchSnap = await db.doc(`matches/${matchId}`).get()
     const matchData = matchSnap.data()
     const winnerUsername = playerNum === 1 ? matchData.player1Username : matchData.player2Username
+    const winCol = col + 1  // 1-indexed
+    const p1Score = calcMatchScore(playerNum === 1, matchData.player1ColumnBet, winCol, matchData.player1MoveBet, newMoveCount)
+    const p2Score = calcMatchScore(playerNum === 2, matchData.player2ColumnBet, winCol, matchData.player2MoveBet, newMoveCount)
     await db.doc(`matches/${matchId}`).update({
       winner: `player${playerNum}`,
       winnerUsername,
@@ -477,7 +509,7 @@ Pick only from the available columns listed above.`
       status: 'finished',
       finishedAt: FieldValue.serverTimestamp(),
     })
-    await updatePlayerStats(db, matchId, playerNum)
+    await updatePlayerStats(db, matchId, playerNum, { player1Score: p1Score, player2Score: p2Score })
     return res.status(200).json({ ok: true })
   }
 
@@ -496,6 +528,12 @@ Pick only from the available columns listed above.`
       currentThinkingText: '',
     })
     if (!applied) return res.status(200).json({ ok: true, skipped: true })
+
+    const matchSnapD = await db.doc(`matches/${matchId}`).get()
+    const matchDataD = matchSnapD.data() || {}
+    const p1ScoreD = calcMatchScore(false, matchDataD.player1ColumnBet, null, matchDataD.player1MoveBet, newMoveCount)
+    const p2ScoreD = calcMatchScore(false, matchDataD.player2ColumnBet, null, matchDataD.player2MoveBet, newMoveCount)
+
     await db.doc(`matches/${matchId}`).update({
       winner: 'draw',
       winnerUsername: null,
@@ -503,7 +541,7 @@ Pick only from the available columns listed above.`
       status: 'finished',
       finishedAt: FieldValue.serverTimestamp(),
     })
-    await updatePlayerStats(db, matchId, null)
+    await updatePlayerStats(db, matchId, null, { player1Score: p1ScoreD, player2Score: p2ScoreD })
     return res.status(200).json({ ok: true })
   }
 

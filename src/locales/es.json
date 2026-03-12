@@ -224,7 +224,10 @@
     "closestOffBy": "¡El más cercano! Diferencia de {{count}} 🎯",
     "offByMoves": "Diferencia de {{count}} movimiento",
     "offByMoves_plural": "Diferencia de {{count}} movimientos",
-    "gameStarting": "La partida está comenzando…"
+    "gameStarting": "La partida está comenzando…",
+    "matchScoreTitle": "⭐ Puntuación del partido",
+    "matchScoreFormula": "Victoria +1.000 pts · Diferencia columna ×10 · Diferencia movs. ×1",
+    "matchScorePts": "pts en este partido"
   },
   "match": {
     "joinTitle": "Unirse a la partida {{id}}",
