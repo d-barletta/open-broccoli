@@ -210,7 +210,7 @@ function MoveBetDropdown({ value, onChange, isP1, t }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border border-gray-700/60 bg-gray-800 py-1 shadow-xl shadow-black/30">
+        <div className="absolute left-0 right-0 bottom-full z-20 mb-2 max-h-56 overflow-y-auto rounded-lg border border-gray-700/60 bg-gray-800 py-1 shadow-xl shadow-black/30">
           {options.map(n => {
             const isSelected = n === value
             return (
