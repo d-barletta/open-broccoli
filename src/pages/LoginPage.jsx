@@ -59,8 +59,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gray-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-gray-950 to-black flex flex-col">
+      <main className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
@@ -222,7 +223,8 @@ export default function LoginPage() {
             </p>
           ) : null}
         </div>
-      </div>
+        </div>
+      </main>
       <PageFooter />
     </div>
   )
