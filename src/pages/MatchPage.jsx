@@ -1171,7 +1171,7 @@ function BetResults({ match, gs }) {
                         ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-200 shadow-lg shadow-yellow-900/30'
                         : 'bg-gray-800/40 border-gray-700/40 text-gray-400'
                     }`}>
-                    <div className="text-2xl mb-1">{allTie ? '🤝' : isScoreWinner ? '🏆' : '·'}</div>
+                    <div className="text-2xl mb-1">{allTie ? '🤝' : isScoreWinner ? '🏆' : '😔'}</div>
                     <div className="font-bold text-sm mb-2">{emoji} {label}</div>
                     <div className={`text-2xl font-black tabular-nums ${score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {score > 0 ? '+' : ''}{score.toLocaleString()}
