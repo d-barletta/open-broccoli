@@ -85,14 +85,6 @@
     "errorPasswordMin": "Le mot de passe doit comporter au moins 6 caractères.",
     "errorSomethingWrong": "Quelque chose s'est mal passé. Veuillez réessayer."
   },
-  "apiKey": {
-    "title": "Clé API OpenRouter",
-    "description": "Votre clé est stockée uniquement dans le localStorage de votre navigateur et n'est jamais envoyée nulle part sauf à OpenRouter.",
-    "getKey": "Obtenir une clé →",
-    "save": "Enregistrer",
-    "saved": "✓ Enregistrée",
-    "clearTitle": "Effacer la clé API"
-  },
   "modelSelector": {
     "all": "Tous",
     "free": "🆓 Gratuit",
@@ -198,7 +190,6 @@
     "bettingOnMoves": "Mise sur {{count}} coups 🎲",
     "taken": "(pris)",
     "startGame": "Démarrer la partie !",
-    "noApiKeyWarn": "⚠ Entrez votre clé API OpenRouter dans l'en-tête pour démarrer",
     "placeBetsWarn": "⚠ Les deux joueurs doivent placer une mise de colonne et une mise de nombre de coups pour démarrer",
     "gamePaused": "Partie en pause",
     "playerThinking": " Le Joueur {{player}} réfléchit…",
@@ -234,7 +225,9 @@
     "offByMoves": "Écart de {{count}} coup",
     "offByMoves_plural": "Écart de {{count}} coups",
     "gameStarting": "La partie commence…",
-    "apiKeyRequired": "Veuillez d'abord définir votre clé API OpenRouter."
+    "matchScoreTitle": "⭐ Score du match",
+    "matchScoreFormula": "Victoire +1 000 pts · Écart colonne ×10 · Écart coups ×1",
+    "matchScorePts": "pts ce match"
   },
   "match": {
     "joinTitle": "Rejoindre la partie {{id}}",

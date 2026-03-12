@@ -2,10 +2,7 @@ import { useState, useRef } from 'react'
 import ChatMessage from './ChatMessage'
 import ModelSelector from './ModelSelector'
 import { streamChatCompletion } from '../services/openrouter'
-
-const CHALLENGER_SYSTEM = `You are a knowledgeable assistant providing comprehensive and accurate answers. Give detailed, well-structured responses that thoroughly address the question.`
-
-const CRITIC_SYSTEM = `You are a critical analyst. Your task is to identify weaknesses, logical flaws, factual errors, and missing information in the following AI response. Be specific and constructive. Structure your critique with clear sections: 1) Main Issues, 2) Factual Concerns, 3) Missing Context, 4) What Was Done Well. Keep your analysis sharp and actionable.`
+import { useAuth } from '../contexts/AuthContext'
 
 const DEFAULT_MODEL_A = 'openai/gpt-4o-mini'
 const DEFAULT_MODEL_B = 'anthropic/claude-3-haiku'
@@ -67,7 +64,8 @@ function IterationDivider({ iteration, side }) {
   )
 }
 
-export default function BattleArena({ apiKey, models, modelsLoading }) {
+export default function BattleArena({ models, modelsLoading }) {
+  const { currentUser } = useAuth()
   const [modelA, setModelA] = useState(DEFAULT_MODEL_A)
   const [modelB, setModelB] = useState(DEFAULT_MODEL_B)
   const [question, setQuestion] = useState('')
@@ -102,6 +100,14 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
     setCurrentIteration(0)
     const currentQuestion = question.trim()
 
+    let authToken
+    try {
+      authToken = await currentUser.getIdToken()
+    } catch (err) {
+      setError(`Authentication error: ${err.message}`)
+      return
+    }
+
     const challengerHistory = []
     const criticHistory = []
 
@@ -111,24 +117,19 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
       // --- Model A turn ---
       setPhase(PHASES.CHALLENGER)
 
-      const messagesForA = [
-        { role: 'system', content: CHALLENGER_SYSTEM },
-        { role: 'user', content: currentQuestion },
-      ]
-      for (let i = 0; i < challengerHistory.length; i++) {
-        messagesForA.push({ role: 'assistant', content: challengerHistory[i] })
-        if (criticHistory[i]) {
-          messagesForA.push({ role: 'user', content: criticHistory[i] })
-        }
-      }
-
       let aFull = ''
       let aError = false
 
       await streamChatCompletion({
-        apiKey,
+        authToken,
+        feature: 'battle_arena',
         model: modelA,
-        messages: messagesForA,
+        payload: {
+          role: 'challenger',
+          question: currentQuestion,
+          challengerHistory: [...challengerHistory],
+          criticHistory: [...criticHistory],
+        },
         onChunk: (delta, full) => {
           aFull = full
           setStreamingChallenger(full)
@@ -152,30 +153,19 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
       // --- Model B turn ---
       setPhase(PHASES.CRITIC)
 
-      const messagesForB = [
-        { role: 'system', content: CRITIC_SYSTEM },
-        {
-          role: 'user',
-          content: `Original question: "${currentQuestion}"\n\nAI Response to critique:\n\n${challengerHistory[0]}`,
-        },
-      ]
-      for (let i = 0; i < criticHistory.length; i++) {
-        messagesForB.push({ role: 'assistant', content: criticHistory[i] })
-        if (challengerHistory[i + 1]) {
-          messagesForB.push({
-            role: 'user',
-            content: `Model A's response to your critique:\n\n${challengerHistory[i + 1]}`,
-          })
-        }
-      }
-
       let bFull = ''
       let bError = false
 
       await streamChatCompletion({
-        apiKey,
+        authToken,
+        feature: 'battle_arena',
         model: modelB,
-        messages: messagesForB,
+        payload: {
+          role: 'critic',
+          question: currentQuestion,
+          challengerHistory: [...challengerHistory],
+          criticHistory: [...criticHistory],
+        },
         onChunk: (delta, full) => {
           bFull = full
           setStreamingCritic(full)
@@ -302,7 +292,7 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
           />
           <button
             onClick={startBattle}
-            disabled={!question.trim() || isRunning || !apiKey}
+            disabled={!question.trim() || isRunning}
             className="flex-shrink-0 px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 
               hover:to-orange-400 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500
               text-gray-900 font-bold rounded-lg transition-all duration-200 text-sm
@@ -321,9 +311,6 @@ export default function BattleArena({ apiKey, models, modelsLoading }) {
             )}
           </button>
         </div>
-        {!apiKey && (
-          <p className="text-yellow-500/70 text-xs mt-2">⚠ Enter your OpenRouter API key to start battles</p>
-        )}
         <p className="text-gray-600 text-xs mt-1">Tip: Press Enter to battle</p>
       </div>
 

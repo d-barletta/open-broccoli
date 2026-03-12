@@ -1066,12 +1066,17 @@ function GameLog({ log, moveCount }) {
 }
 
 function BetResults({ match, gs }) {
+  const { t } = useTranslation()
   const moveCount = gs?.moveCount || 0
   const lastMove = gs?.lastMove
   const winnerNum = match.winner === 'player1' ? 1 : match.winner === 'player2' ? 2 : null
 
+  const p1Score = match.player1Score ?? null
+  const p2Score = match.player2Score ?? null
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Column bet */}
       {(match.player1ColumnBet !== null || match.player2ColumnBet !== null) && (() => {
         const winCol = winnerNum !== null && lastMove ? lastMove.col + 1 : null
@@ -1130,6 +1135,48 @@ function BetResults({ match, gs }) {
                     <div className="font-bold text-sm mb-1">{emoji} {label}</div>
                     <div className="text-xs">Guessed: {bet}</div>
                     <div className="text-xs font-bold mt-1">{isWin ? `✓ ${diff === 0 ? 'Exact!' : `Off by ${diff}`}` : `Off by ${diff}`}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+      </div>
+
+      {/* Match scores */}
+      {(p1Score !== null || p2Score !== null) && (() => {
+        const scores = [
+          { label: match.player1Username, emoji: '🔴', score: p1Score },
+          { label: match.player2Username, emoji: '🟡', score: p2Score },
+        ].filter(s => s.score !== null)
+        if (!scores.length) return null
+        const maxScore = Math.max(...scores.map(s => s.score))
+        const allTie = scores.every(s => s.score === maxScore)
+        return (
+          <div className="bg-gray-900/80 border border-yellow-500/30 rounded-xl p-5">
+            <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400 mb-1 text-center">{t('game.matchScoreTitle')}</h3>
+            <p className="text-center text-xs text-gray-500 mb-4">
+              {t('game.matchScoreFormula')}
+            </p>
+            <div className="flex gap-3">
+              {scores.map(({ label, emoji, score }) => {
+                const isTop = score === maxScore
+                const isScoreWinner = isTop && !allTie
+                return (
+                  <div key={label} className={`flex-1 rounded-xl px-4 py-4 text-center border transition-all
+                    ${allTie
+                      ? 'bg-gray-800/60 border-gray-600/40 text-gray-300'
+                      : isScoreWinner
+                        ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-200 shadow-lg shadow-yellow-900/30'
+                        : 'bg-gray-800/40 border-gray-700/40 text-gray-400'
+                    }`}>
+                    <div className="text-2xl mb-1">{allTie ? '🤝' : isScoreWinner ? '🏆' : '·'}</div>
+                    <div className="font-bold text-sm mb-2">{emoji} {label}</div>
+                    <div className={`text-2xl font-black tabular-nums ${score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {score > 0 ? '+' : ''}{score.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{t('game.matchScorePts')}</div>
                   </div>
                 )
               })}
