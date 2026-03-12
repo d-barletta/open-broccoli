@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
-import { createMatch, getMatch } from '../services/firestoreService'
+import { createMatch, createVsAiMatch, getMatch } from '../services/firestoreService'
 import PageFooter from '../components/PageFooter'
 
 export default function HomePage() {
@@ -13,6 +13,7 @@ export default function HomePage() {
   const [joinCode, setJoinCode] = useState('')
   const [joinError, setJoinError] = useState(null)
   const [creatingMatch, setCreatingMatch] = useState(false)
+  const [creatingVsAiMatch, setCreatingVsAiMatch] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   async function handleCreateMatch() {
@@ -24,6 +25,18 @@ export default function HomePage() {
       console.error(err)
     } finally {
       setCreatingMatch(false)
+    }
+  }
+
+  async function handleCreateVsAiMatch() {
+    setCreatingVsAiMatch(true)
+    try {
+      const matchId = await createVsAiMatch(userProfile.uid, userProfile.username)
+      navigate(`/match/${matchId}`)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCreatingVsAiMatch(false)
     }
   }
 
@@ -214,6 +227,26 @@ export default function HomePage() {
               </button>
             </form>
           </div>
+        </div>
+
+        {/* Play vs AI */}
+        <div className="bg-gradient-to-br from-purple-950/60 to-gray-900/80 border border-purple-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6 mb-8">
+          <div className="text-4xl flex-shrink-0">🤖</div>
+          <div className="flex-1 text-center sm:text-left">
+            <h2 className="text-xl font-black text-purple-300 mb-1">{t('home.vsAiTitle')}</h2>
+            <p className="text-gray-400 text-sm">{t('home.vsAiDesc')}</p>
+          </div>
+          <button
+            onClick={handleCreateVsAiMatch}
+            disabled={creatingVsAiMatch}
+            className="flex-shrink-0 px-8 py-3 bg-gradient-to-r from-purple-500 to-indigo-500
+              hover:from-purple-400 hover:to-indigo-400
+              disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed
+              text-white font-black text-base rounded-xl transition-all duration-200
+              shadow-lg hover:shadow-purple-500/20 active:scale-95"
+          >
+            {creatingVsAiMatch ? t('home.creatingMatch') : t('home.vsAiBtn')}
+          </button>
         </div>
 
         {/* How it works */}

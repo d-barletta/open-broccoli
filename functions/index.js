@@ -8,6 +8,8 @@ if (!getApps().length) initializeApp()
 const ROWS = 6
 const COLS = 7
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
+// Sentinel UID used for the AI opponent in vs-AI matches (see firestoreService.js).
+const AI_PLAYER_UID = '__ai__'
 
 // Write streaming text to Firestore at most once per this interval (ms)
 const STREAM_WRITE_INTERVAL_MS = 800
@@ -223,7 +225,8 @@ async function updatePlayerStats(db, matchId, winnerPlayerNum) {
         if (winnerPlayerNum === 1) updates.matchesWon = FieldValue.increment(1)
         tx.set(ref, updates, { merge: true })
       }
-      if (matchData.player2Uid) {
+      // Skip stats update for AI player (no real user account to update)
+      if (matchData.player2Uid && matchData.player2Uid !== AI_PLAYER_UID) {
         const ref = db.doc(`users/${matchData.player2Uid}`)
         const updates = { matchesPlayed: FieldValue.increment(1) }
         if (winnerPlayerNum === 2) updates.matchesWon = FieldValue.increment(1)
