@@ -138,6 +138,88 @@ function normalizeStrategyText(value) {
     .slice(0, MAX_STRATEGY_CHARS)
 }
 
+function MoveBetDropdown({ value, onChange, otherValue, isP1, t }) {
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [])
+
+  const options = Array.from({ length: MAX_MOVES - MIN_MOVES + 1 }, (_, i) => i + MIN_MOVES)
+  const borderTone = isP1
+    ? 'border-red-500/40 hover:border-red-400/60 focus:border-red-400 focus:ring-red-500/20'
+    : 'border-yellow-500/40 hover:border-yellow-400/60 focus:border-yellow-400 focus:ring-yellow-500/20'
+
+  return (
+    <div ref={dropdownRef} className="relative w-32">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`h-9 w-full flex items-center justify-between rounded-lg border bg-gray-800/60 px-3 text-sm transition-all focus:outline-none focus:ring-2 ${borderTone}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={value === null ? 'text-gray-500' : 'text-gray-100'}>
+          {value === null ? t('game.pickLabel') : value}
+        </span>
+        <svg
+          className={`h-3 w-3 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border border-gray-700/60 bg-gray-800 py-1 shadow-xl shadow-black/30">
+          {options.map(n => {
+            const isTaken = n === otherValue
+            const isSelected = n === value
+
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => {
+                  if (isTaken) return
+                  onChange(n)
+                  setOpen(false)
+                }}
+                disabled={isTaken}
+                className={`flex w-full items-center justify-between px-3 py-1.5 text-xs transition-colors ${isTaken
+                  ? 'cursor-not-allowed text-gray-600 opacity-60'
+                  : isSelected
+                    ? isP1
+                      ? 'bg-red-500/15 text-red-200'
+                      : 'bg-yellow-500/15 text-yellow-200'
+                    : 'text-gray-300 hover:bg-gray-700/60'}`}
+              >
+                <span className={isSelected ? 'font-semibold' : ''}>{n}</span>
+                {isTaken && <span className="text-[10px] uppercase tracking-wide">{t('game.taken')}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlayerSetup({ player, model, onModelChange, instructions, onInstructionsChange,
   bet, onBetChange, otherBet,
   moveBet, onMoveBetChange, otherMoveBet,
@@ -251,26 +333,13 @@ function PlayerSetup({ player, model, onModelChange, instructions, onInstruction
               className="w-9 h-9 rounded-lg bg-gray-800/60 border border-gray-600/40 text-gray-300
                 hover:border-gray-400/60 hover:text-white active:scale-95 transition-all font-bold text-lg"
             >−</button>
-            <select
-              value={moveBet === null ? '' : moveBet}
-              onChange={e => {
-                const v = parseInt(e.target.value, 10)
-                onMoveBetChange(isNaN(v) ? null : v)
-              }}
-              className={`h-9 w-28 bg-gray-800/60 border rounded-lg px-2 py-2 text-gray-100 text-sm
-                focus:outline-none focus:ring-2 transition-all text-center
-                ${isP1
-                  ? 'border-red-500/40 focus:border-red-400 focus:ring-red-500/20'
-                  : 'border-yellow-500/40 focus:border-yellow-400 focus:ring-yellow-500/20'
-                }`}
-            >
-              <option value="">{t('game.pickLabel')}</option>
-              {Array.from({ length: MAX_MOVES - MIN_MOVES + 1 }, (_, i) => i + MIN_MOVES).map(n => (
-                <option key={n} value={n} disabled={n === otherMoveBet}>
-                  {n}{n === otherMoveBet ? ` ${t('game.taken')}` : ''}
-                </option>
-              ))}
-            </select>
+            <MoveBetDropdown
+              value={moveBet}
+              onChange={onMoveBetChange}
+              otherValue={otherMoveBet}
+              isP1={isP1}
+              t={t}
+            />
             <button
               type="button"
               onClick={() => {
