@@ -10,6 +10,12 @@
     },
     "api/models.js": {
       "maxDuration": 30
+    },
+    "api/delete-user.js": {
+      "maxDuration": 30
+    },
+    "api/llm-credits.js": {
+      "maxDuration": 15
     }
   }
 }

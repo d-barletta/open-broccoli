@@ -27,7 +27,9 @@ service cloud.firestore {
 
     // ── Users ─────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Restrict reads to the document owner or an admin to prevent any
+      // authenticated user from harvesting other users' email addresses.
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
@@ -44,6 +46,7 @@ service cloud.firestore {
     // public — available model list; readable by all authenticated users
     // secret — OpenRouter API key; readable ONLY by admins in the browser.
     //          The Cloud Function uses the Admin SDK which bypasses these rules.
+    // llmStats — aggregate token-usage counters; written by Admin SDK only.
     match /adminSettings/public {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
@@ -52,6 +55,18 @@ service cloud.firestore {
     match /adminSettings/secret {
       allow read: if isAdmin();
       allow write: if isAdmin();
+    }
+
+    match /adminSettings/llmStats {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── Per-model LLM usage stats ─────────────────────────────────────────
+    // Written exclusively by server-side functions (Admin SDK).
+    match /llmStats/{modelDoc} {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only
     }
 
     // ── Matches ───────────────────────────────────────────────────────────

@@ -286,3 +286,43 @@ export async function getUserMatches(uid, limitCount = 50) {
     })
     .slice(0, limitCount)
 }
+
+// ─── Admin: delete user (delegates to serverless function) ───────────────────
+// The actual deletion (Auth + all Firestore data) is performed server-side via
+// /api/delete-user to avoid client-side permission issues with Firebase Auth.
+export async function adminDeleteUser(uid, authToken) {
+  const response = await fetch('/api/delete-user', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ uid }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to delete user')
+  return data
+}
+
+// ─── Admin: LLM usage stats ───────────────────────────────────────────────────
+// Returns the aggregate stats doc and per-model breakdown from llmStats collection.
+export async function getLlmStats() {
+  const [totalSnap, modelsSnap] = await Promise.all([
+    getDoc(doc(db, 'adminSettings', 'llmStats')),
+    getDocs(collection(db, 'llmStats')),
+  ])
+  const total = totalSnap.exists() ? totalSnap.data() : null
+  const byModel = modelsSnap.docs.map(d => d.data())
+  return { total, byModel }
+}
+
+// ─── Admin: OpenRouter credit balance ────────────────────────────────────────
+// Fetches key metadata (usage, limit) from OpenRouter via the backend proxy.
+export async function getLlmCredits(authToken) {
+  const response = await fetch('/api/llm-credits', {
+    headers: { Authorization: `Bearer ${authToken}` },
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to fetch credits')
+  return data.data
+}
