@@ -242,11 +242,11 @@ async function recordLlmUsage(db, model, usage) {
 
 // ─── Score calculation ────────────────────────────────────────────────────────
 // Formula (per match):
-//   base   = won ? 1000 : 500
+//   base   = won ? 1000 : 999
 //   minus  |columnBet - winCol| * 10   (only when there is a winning column)
 //   minus  |moveBet   - moveCount|
 function calcMatchScore(won, columnBet, winCol, moveBet, moveCount) {
-  let score = won ? 1000 : 500
+  let score = won ? 1000 : 999
   if (winCol !== null && winCol !== undefined && columnBet !== null && columnBet !== undefined) {
     score -= Math.abs(columnBet - winCol) * 10
   }
