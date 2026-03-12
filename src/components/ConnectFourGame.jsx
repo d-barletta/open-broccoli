@@ -932,10 +932,10 @@ export default function ConnectFourGame({ models, modelsLoading }) {
         {/* Match Scores */}
         {(bet1 !== null || bet2 !== null || moveBet1 !== null || moveBet2 !== null) && (() => {
           const winCol = winner !== 'draw' && lastMove ? lastMove.col + 1 : null
-          const score1 = (winner === PLAYER_1 ? 1000 : 0)
+          const score1 = (winner === PLAYER_1 ? 1000 : 500)
             - (winCol !== null && bet1 !== null ? Math.abs(bet1 - winCol) * 10 : 0)
             - (moveBet1 !== null ? Math.abs(moveBet1 - moveCount) : 0)
-          const score2 = (winner === PLAYER_2 ? 1000 : 0)
+          const score2 = (winner === PLAYER_2 ? 1000 : 500)
             - (winCol !== null && bet2 !== null ? Math.abs(bet2 - winCol) * 10 : 0)
             - (moveBet2 !== null ? Math.abs(moveBet2 - moveCount) : 0)
           const maxScore = Math.max(score1, score2)
