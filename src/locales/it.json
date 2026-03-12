@@ -1,7 +1,7 @@
 {
   "common": {
     "signOut": "Esci",
-    "admin": "⚙ Admin",
+    "admin": "Admin",
     "myDashboard": "Dashboard",
     "poweredBy": "Powered by",
     "yourConfigIsPrivate": "La tua config è privata",
@@ -128,7 +128,7 @@
     "waitingForOpponent": "In attesa dell'avversario"
   },
   "admin": {
-    "badge": "⚙ Admin",
+    "badge": "Admin",
     "pageTitle": "Dashboard Admin",
     "pageDescription": "Gestisci impostazioni, utenti e statistiche delle partite.",
     "tabSettings": "Impostazioni",

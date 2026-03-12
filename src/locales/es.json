@@ -1,7 +1,7 @@
 {
   "common": {
     "signOut": "Cerrar sesión",
-    "admin": "⚙ Admin",
+    "admin": "Admin",
     "myDashboard": "Mi Panel",
     "poweredBy": "Desarrollado por",
     "yourConfigIsPrivate": "Tu config es privada",
@@ -128,7 +128,7 @@
     "waitingForOpponent": "Esperando al oponente"
   },
   "admin": {
-    "badge": "⚙ Admin",
+    "badge": "Admin",
     "pageTitle": "Panel de administración",
     "pageDescription": "Gestiona configuraciones, usuarios y estadísticas de partidas.",
     "tabSettings": "Configuración",

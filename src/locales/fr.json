@@ -1,7 +1,7 @@
 {
   "common": {
     "signOut": "Se déconnecter",
-    "admin": "⚙ Admin",
+    "admin": "Admin",
     "myDashboard": "Mon Tableau de Bord",
     "poweredBy": "Propulsé par",
     "yourConfigIsPrivate": "Votre config est privée",
@@ -128,7 +128,7 @@
     "waitingForOpponent": "En attente de l'adversaire"
   },
   "admin": {
-    "badge": "⚙ Admin",
+    "badge": "Admin",
     "pageTitle": "Tableau de Bord Admin",
     "pageDescription": "Gérez les paramètres, les utilisateurs et les statistiques des parties.",
     "tabSettings": "Paramètres",
