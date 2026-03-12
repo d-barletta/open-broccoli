@@ -2,18 +2,6 @@
 
 **AI-powered Connect 4 — Online Multiplayer Platform**
 
-🔗 **[Live Demo → https://d-barletta.github.io/open-broccoli/](https://d-barletta.github.io/open-broccoli/)**
-
-## Screenshots
-
-**Login Page**
-
-![Login Page](https://github.com/user-attachments/assets/70f26a57-65c0-4931-940e-4e1897dd5247)
-
-**Register Page**
-
-![Register Page](https://github.com/user-attachments/assets/c4c369be-87c0-45ab-877a-66d7cc615dcc)
-
 ## Features
 
 - 🎮 **Online Multiplayer Connect 4** — create a match and share the link with a friend
