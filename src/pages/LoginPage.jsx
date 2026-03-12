@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import PageFooter from '../components/PageFooter'
 
 export default function LoginPage() {
   const { login, register, isAnonymous, userProfile, logout } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
-  const [mode, setMode] = useState(isAnonymous ? 'register' : 'login') // 'login' | 'register'
+  const [mode, setMode] = useState(isAnonymous ? 'register' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -18,7 +21,7 @@ export default function LoginPage() {
 
   function selectMode(nextMode) {
     if (isAnonymous && nextMode === 'login') {
-      setError('To keep your guest match history, upgrade this guest session with Register. If you need another account, sign out first.')
+      setError(t('login.guestLoginWarn'))
       return
     }
     setMode(nextMode)
@@ -30,14 +33,14 @@ export default function LoginPage() {
     setError(null)
 
     if (mode === 'register') {
-      if (!username.trim()) { setError('Username is required.'); return }
-      if (username.trim().length < 3) { setError('Username must be at least 3 characters.'); return }
+      if (!username.trim()) { setError(t('login.errorUsernameRequired')); return }
+      if (username.trim().length < 3) { setError(t('login.errorUsernameMin')); return }
       if (!/^[a-zA-Z0-9_-]+$/.test(username.trim())) {
-        setError('Username can only contain letters, numbers, underscores, and hyphens.')
+        setError(t('login.errorUsernameChars'))
         return
       }
-      if (password !== confirmPassword) { setError('Passwords do not match.'); return }
-      if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+      if (password !== confirmPassword) { setError(t('login.errorPasswordsNoMatch')); return }
+      if (password.length < 6) { setError(t('login.errorPasswordMin')); return }
     }
 
     setLoading(true)
@@ -49,7 +52,7 @@ export default function LoginPage() {
       }
       navigate(redirectTarget, { replace: true })
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.')
+      setError(err.message || t('login.errorSomethingWrong'))
     } finally {
       setLoading(false)
     }
@@ -66,8 +69,8 @@ export default function LoginPage() {
           <h1 className="text-3xl font-black text-white tracking-tight">open-broccoli</h1>
           <p className="text-gray-500 text-sm mt-1">
             {isAnonymous
-              ? `Upgrade guest session for ${userProfile?.username || 'guest'} and keep your matches`
-              : 'AI-powered Connect 4 — Online Multiplayer'}
+              ? t('login.upgradeGuestTagline', { username: userProfile?.username || 'guest' })
+              : t('login.tagline')}
           </p>
         </div>
 
@@ -80,20 +83,20 @@ export default function LoginPage() {
               className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all
                 ${mode === 'login' ? 'bg-yellow-500 text-gray-900 shadow' : 'text-gray-400 hover:text-gray-200'} ${isAnonymous ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isAnonymous ? 'Existing Account' : 'Sign In'}
+              {isAnonymous ? t('login.existingAccountTab') : t('login.signInTab')}
             </button>
             <button
               onClick={() => selectMode('register')}
               className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all
                 ${mode === 'register' ? 'bg-yellow-500 text-gray-900 shadow' : 'text-gray-400 hover:text-gray-200'}`}
             >
-              {isAnonymous ? 'Upgrade Guest' : 'Register'}
+              {isAnonymous ? t('login.upgradeGuestTab') : t('login.registerTab')}
             </button>
           </div>
 
           {isAnonymous && (
             <div className="bg-cyan-950/50 border border-cyan-500/30 rounded-lg px-3 py-2.5 text-cyan-200 text-sm mb-4">
-              This will attach email and password to your current guest session, so your existing matches stay on the same account.
+              {t('login.upgradeGuestNote')}
             </div>
           )}
 
@@ -101,32 +104,32 @@ export default function LoginPage() {
             {mode === 'register' && (
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">
-                  Username
+                  {t('login.usernameLabel')}
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  placeholder="Your unique username"
+                  placeholder={t('login.usernamePlaceholder')}
                   autoComplete="username"
                   required
                   className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2.5
                     text-gray-100 placeholder-gray-500 text-sm focus:outline-none
                     focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/20 transition-all"
                 />
-                <p className="text-gray-600 text-xs mt-1">Letters, numbers, _ and - only. Min 3 characters.</p>
+                <p className="text-gray-600 text-xs mt-1">{t('login.usernameHint')}</p>
               </div>
             )}
 
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">
-                Email
+                {t('login.emailLabel')}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t('login.emailPlaceholder')}
                 autoComplete="email"
                 required
                 className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2.5
@@ -137,14 +140,14 @@ export default function LoginPage() {
 
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">
-                Password
+                {t('login.passwordLabel')}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder={mode === 'register' ? 'Min. 6 characters' : 'Your password'}
+                  placeholder={mode === 'register' ? t('login.passwordPlaceholderRegister') : t('login.passwordPlaceholderLogin')}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   required
                   className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2.5
@@ -164,13 +167,13 @@ export default function LoginPage() {
             {mode === 'register' && (
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">
-                  Confirm Password
+                  {t('login.confirmPasswordLabel')}
                 </label>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat password"
+                  placeholder={t('login.confirmPasswordPlaceholder')}
                   autoComplete="new-password"
                   required
                   className="w-full bg-gray-800/60 border border-gray-600/50 rounded-lg px-3 py-2.5
@@ -196,7 +199,7 @@ export default function LoginPage() {
                 text-gray-900 font-black text-base rounded-xl transition-all duration-200
                 shadow-lg hover:shadow-yellow-500/20 active:scale-95 mt-1"
             >
-              {loading ? '...' : mode === 'login' ? 'Sign In →' : isAnonymous ? 'Upgrade Account →' : 'Create Account →'}
+              {loading ? t('login.submitting') : mode === 'login' ? t('login.submitLogin') : isAnonymous ? t('login.submitUpgrade') : t('login.submitRegister')}
             </button>
           </form>
 
@@ -210,23 +213,17 @@ export default function LoginPage() {
                 }}
                 className="text-xs text-gray-500 hover:text-gray-300 underline underline-offset-2"
               >
-                Sign out guest session
+                {t('login.signOutGuest')}
               </button>
             </div>
           ) : mode === 'register' ? (
             <p className="text-gray-600 text-xs text-center mt-4">
-              The first registered user becomes admin.
+              {t('login.firstUserAdmin')}
             </p>
           ) : null}
         </div>
-
-        <p className="text-center text-gray-700 text-xs mt-6">
-          Powered by{' '}
-          <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-500">
-            OpenRouter
-          </a>
-        </p>
       </div>
+      <PageFooter />
     </div>
   )
 }

@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { createMatch, getMatch } from '../services/firestoreService'
+import PageFooter from '../components/PageFooter'
 
 export default function HomePage() {
   const { userProfile, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const [joinCode, setJoinCode] = useState('')
   const [joinError, setJoinError] = useState(null)
   const [creatingMatch, setCreatingMatch] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   async function handleCreateMatch() {
     setCreatingMatch(true)
@@ -27,14 +31,13 @@ export default function HomePage() {
     e.preventDefault()
     setJoinError(null)
     const code = joinCode.trim().toUpperCase()
-    if (!code) { setJoinError('Please enter a match code.'); return }
-    // Validate match exists
+    if (!code) { setJoinError(t('home.errorNoCode')); return }
     try {
       const match = await getMatch(code)
-      if (!match) { setJoinError('Match not found. Check the code and try again.'); return }
+      if (!match) { setJoinError(t('home.errorNotFound')); return }
       navigate(`/match/${code}`)
     } catch {
-      setJoinError('Could not find that match. Try again.')
+      setJoinError(t('home.errorTryAgain'))
     }
   }
 
@@ -47,13 +50,15 @@ export default function HomePage() {
             <span className="text-xl">🥦</span>
             <span className="font-black text-sm text-gray-300 tracking-tight">open-broccoli</span>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-3">
             <button
               onClick={() => navigate('/dashboard')}
               className="text-xs px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30
                 text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium"
             >
-              My Dashboard
+              {t('common.myDashboard')}
             </button>
             {isAdmin && (
               <button
@@ -61,21 +66,66 @@ export default function HomePage() {
                 className="text-xs px-3 py-1.5 rounded-lg border bg-purple-500/10 border-purple-500/30
                   text-purple-300 hover:bg-purple-500/20 transition-all font-medium"
               >
-                ⚙ Admin
+                {t('common.admin')}
               </button>
             )}
-            <span className="text-xs text-gray-500 hidden sm:block">
-              👤 {userProfile?.username}
-            </span>
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
             <button
               onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50
                 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium"
             >
-              Sign Out
+              {t('common.signOut')}
             </button>
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(v => !v)}
+            className="sm:hidden p-2 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 transition-all"
+            aria-label="Open menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-800/60 bg-gray-950/95 px-4 py-3 flex flex-col gap-2">
+            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            <button
+              onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false) }}
+              className="text-xs px-3 py-2 rounded-lg border bg-cyan-500/10 border-cyan-500/30
+                text-cyan-300 hover:bg-cyan-500/20 transition-all font-medium text-left"
+            >
+              {t('common.myDashboard')}
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => { navigate('/admin'); setMobileMenuOpen(false) }}
+                className="text-xs px-3 py-2 rounded-lg border bg-purple-500/10 border-purple-500/30
+                  text-purple-300 hover:bg-purple-500/20 transition-all font-medium text-left"
+              >
+                {t('common.admin')}
+              </button>
+            )}
+            <button
+              onClick={() => { logout(); setMobileMenuOpen(false) }}
+              className="text-xs px-3 py-2 rounded-lg border bg-gray-800/60 border-gray-700/50
+                text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium text-left"
+            >
+              {t('common.signOut')}
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12">
@@ -84,24 +134,25 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-3 mb-4">
             <span className="text-5xl">🔴</span>
             <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-red-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent">
-              Connect 4
+              {t('home.heroTitle')}
             </h1>
             <span className="text-5xl">🟡</span>
           </div>
           <p className="text-gray-400 text-base max-w-xl mx-auto">
-            Challenge a friend! Each player instructs their AI and places bets — then watch them battle live.
+            {t('home.heroTagline')}
           </p>
           <p className="text-gray-500 text-sm mt-2">
-            Welcome back, <span className="text-yellow-400 font-semibold">{userProfile?.username}</span>!
+            {t('home.welcomeBack', { username: userProfile?.username })}
             {userProfile?.matchesPlayed > 0 && (
               <span className="ml-2">
-                {userProfile.matchesPlayed} game{userProfile.matchesPlayed !== 1 ? 's' : ''} played
-                · {userProfile.matchesWon} won
+                {t('home.gamesPlayed', { count: userProfile.matchesPlayed })}
+                {' · '}
+                {t('home.gamesWon', { count: userProfile.matchesWon })}
               </span>
             )}
           </p>
           <p className="text-gray-600 text-xs mt-2">
-            Use My Dashboard to review your own matches and see whether each one was won, lost, drawn, or still in progress.
+            {t('home.dashboardHint')}
           </p>
         </div>
 
@@ -111,9 +162,9 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-red-950/60 to-gray-900/80 border border-red-500/30 rounded-2xl p-6 flex flex-col items-center text-center gap-4">
             <div className="text-4xl">🎮</div>
             <div>
-              <h2 className="text-xl font-black text-red-300 mb-1">Create Match</h2>
+              <h2 className="text-xl font-black text-red-300 mb-1">{t('home.createMatchTitle')}</h2>
               <p className="text-gray-400 text-sm">
-                Start a new game as Player 1. You'll get a link to share with your opponent.
+                {t('home.createMatchDesc')}
               </p>
             </div>
             <button
@@ -125,7 +176,7 @@ export default function HomePage() {
                 text-white font-black text-base rounded-xl transition-all duration-200
                 shadow-lg hover:shadow-red-500/20 active:scale-95"
             >
-              {creatingMatch ? 'Creating…' : '+ Create Match'}
+              {creatingMatch ? t('home.creatingMatch') : t('home.createMatchBtn')}
             </button>
           </div>
 
@@ -133,9 +184,9 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-yellow-950/60 to-gray-900/80 border border-yellow-500/30 rounded-2xl p-6 flex flex-col items-center text-center gap-4">
             <div className="text-4xl">🔗</div>
             <div>
-              <h2 className="text-xl font-black text-yellow-300 mb-1">Join Match</h2>
+              <h2 className="text-xl font-black text-yellow-300 mb-1">{t('home.joinMatchTitle')}</h2>
               <p className="text-gray-400 text-sm">
-                Have a match code or link? Enter it below to join as Player 2.
+                {t('home.joinMatchDesc')}
               </p>
             </div>
             <form onSubmit={handleJoinMatch} className="w-full flex flex-col gap-2">
@@ -143,7 +194,7 @@ export default function HomePage() {
                 type="text"
                 value={joinCode}
                 onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="Match code (e.g. AB12CD34)"
+                placeholder={t('home.matchCodePlaceholder')}
                 maxLength={8}
                 className="w-full bg-gray-800/60 border border-yellow-500/30 rounded-lg px-3 py-2.5
                   text-gray-100 placeholder-gray-500 text-sm text-center font-mono uppercase
@@ -159,7 +210,7 @@ export default function HomePage() {
                   text-gray-900 font-black text-base rounded-xl transition-all duration-200
                   shadow-lg hover:shadow-yellow-500/20 active:scale-95"
               >
-                Join Match →
+                {t('home.joinMatchBtn')}
               </button>
             </form>
           </div>
@@ -168,14 +219,14 @@ export default function HomePage() {
         {/* How it works */}
         <div className="bg-gray-900/60 border border-gray-700/50 rounded-2xl p-6">
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 text-center">
-            How It Works
+            {t('home.howItWorks')}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
             {[
-              { icon: '🎮', title: 'Create', desc: 'Player 1 creates a match and gets a shareable link' },
-              { icon: '🔗', title: 'Share', desc: 'Send the link to your opponent (Player 2)' },
-              { icon: '⚙', title: 'Setup', desc: 'Each player configures their AI and places bets privately' },
-              { icon: '🤖', title: 'Play', desc: 'Watch the AIs battle live — best bet wins!' },
+              { icon: '🎮', title: t('home.stepCreate'), desc: t('home.stepCreateDesc') },
+              { icon: '🔗', title: t('home.stepShare'), desc: t('home.stepShareDesc') },
+              { icon: '⚙', title: t('home.stepSetup'), desc: t('home.stepSetupDesc') },
+              { icon: '🤖', title: t('home.stepPlay'), desc: t('home.stepPlayDesc') },
             ].map(step => (
               <div key={step.title} className="flex flex-col items-center gap-2">
                 <div className="text-2xl">{step.icon}</div>
@@ -187,18 +238,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-800/40 py-6 text-center text-xs text-gray-700">
-        <p>
-          Powered by{' '}
-          <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-400 underline underline-offset-2">
-            OpenRouter
-          </a>
-          {' '}· Your config is private ·{' '}
-          <a href="https://github.com/d-barletta/open-broccoli" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-400 underline underline-offset-2">
-            GitHub
-          </a>
-        </p>
-      </footer>
+      <PageFooter />
     </div>
   )
 }
