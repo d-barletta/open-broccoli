@@ -156,6 +156,7 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
         { role: 'user', content: userMsg },
       ],
       stream: true,
+      stream_options: { include_usage: true },
       max_tokens: 512,
     }),
   })
@@ -170,6 +171,7 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
   let buffer = ''
   let fullContent = ''
   let lastWrite = Date.now()
+  let usageCaptured = null
 
   while (true) {
     const { done, value } = await reader.read()
@@ -185,6 +187,7 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
       if (!trimmed.startsWith('data: ')) continue
       try {
         const json = JSON.parse(trimmed.slice(6))
+        if (json.usage) usageCaptured = json.usage
         const delta = json.choices?.[0]?.delta?.content
         if (delta) {
           fullContent += delta
@@ -200,7 +203,41 @@ async function callOpenRouter({ apiKey, model, systemPrompt, userMsg, gsRef }) {
     }
   }
 
-  return fullContent
+  return { fullContent, usage: usageCaptured }
+}
+
+// Encode a model ID for use as a Firestore document ID (/ is not allowed).
+function encodeModelForFirestore(model) {
+  return model.replace(/\//g, '__')
+}
+
+// Write per-call token usage to the llmStats collection (best-effort).
+async function recordLlmUsage(db, model, usage) {
+  if (!usage) return
+  const promptTokens = usage.prompt_tokens ?? 0
+  const completionTokens = usage.completion_tokens ?? 0
+  const totalTokens = usage.total_tokens ?? (promptTokens + completionTokens)
+  const encodedModel = encodeModelForFirestore(model)
+  try {
+    const batch = db.batch()
+    batch.set(db.doc('adminSettings/llmStats'), {
+      totalCalls: FieldValue.increment(1),
+      totalPromptTokens: FieldValue.increment(promptTokens),
+      totalCompletionTokens: FieldValue.increment(completionTokens),
+      totalTokens: FieldValue.increment(totalTokens),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true })
+    batch.set(db.doc(`llmStats/${encodedModel}`), {
+      model,
+      calls: FieldValue.increment(1),
+      promptTokens: FieldValue.increment(promptTokens),
+      completionTokens: FieldValue.increment(completionTokens),
+      totalTokens: FieldValue.increment(totalTokens),
+    }, { merge: true })
+    await batch.commit()
+  } catch (err) {
+    console.warn('[ai-move] Failed to record LLM usage:', err.message)
+  }
 }
 
 // ─── Score calculation ────────────────────────────────────────────────────────
@@ -384,7 +421,13 @@ export default async function handler(req, res) {
   const publicSettings = publicSettingsSnap.data() || {}
   const forceSameModel = publicSettings.forceSameModel === true
   const forcedModel = publicSettings.forcedModel
-  const modelToUse = (forceSameModel && forcedModel) ? forcedModel : config.model
+  const useOpenRouterFree = publicSettings.useOpenRouterFree === true
+
+  let modelToUse = (forceSameModel && forcedModel) ? forcedModel : config.model
+  // Apply free mode: append :free suffix if not already present
+  if (modelToUse && useOpenRouterFree && !modelToUse.includes(':')) {
+    modelToUse = `${modelToUse}:free`
+  }
 
   if (!modelToUse) {
     await gsRef.update({
@@ -421,13 +464,16 @@ Pick only from the available columns listed above.`
   const thinkingKey = `player${playerNum}LastThinking`
 
   try {
-    fullResponse = await callOpenRouter({
+    const result = await callOpenRouter({
       apiKey,
       model: modelToUse,
       systemPrompt,
       userMsg,
       gsRef,
     })
+    fullResponse = result.fullContent
+    // Record token usage asynchronously (does not block game flow)
+    recordLlmUsage(db, modelToUse, result.usage).catch(() => {})
   } catch (err) {
     await gsRef.update({
       isThinking: false,

@@ -12,7 +12,7 @@
 // (same as api/ai-move.js).
 
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
 
 // ─── Firebase Admin init ──────────────────────────────────────────────────────
@@ -55,10 +55,46 @@ function sanitizeInstructions(value) {
 }
 
 function isValidModelId(model) {
-  // Model IDs look like "provider/model-name", e.g. "openai/gpt-4o-mini"
+  // Model IDs look like "provider/model-name" or "provider/model-name:free"
   return typeof model === 'string'
     && /^[\w.\-:]+\/[\w.\-:]+$/.test(model)
-    && model.length <= 100
+    && model.length <= 120
+}
+
+// Encode a model ID for use as a Firestore document ID (/ is not allowed).
+function encodeModelForFirestore(model) {
+  return model.replace(/\//g, '__')
+}
+
+// Write per-call token usage to the llmStats collection (best-effort).
+async function recordLlmUsage(db, model, usage) {
+  if (!usage) return
+  const promptTokens = usage.prompt_tokens ?? 0
+  const completionTokens = usage.completion_tokens ?? 0
+  const totalTokens = usage.total_tokens ?? (promptTokens + completionTokens)
+  const encodedModel = encodeModelForFirestore(model)
+  try {
+    const batch = db.batch()
+    // Aggregate totals
+    batch.set(db.doc('adminSettings/llmStats'), {
+      totalCalls: FieldValue.increment(1),
+      totalPromptTokens: FieldValue.increment(promptTokens),
+      totalCompletionTokens: FieldValue.increment(completionTokens),
+      totalTokens: FieldValue.increment(totalTokens),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true })
+    // Per-model totals
+    batch.set(db.doc(`llmStats/${encodedModel}`), {
+      model,
+      calls: FieldValue.increment(1),
+      promptTokens: FieldValue.increment(promptTokens),
+      completionTokens: FieldValue.increment(completionTokens),
+      totalTokens: FieldValue.increment(totalTokens),
+    }, { merge: true })
+    await batch.commit()
+  } catch (err) {
+    console.warn('[chat] Failed to record LLM usage:', err.message)
+  }
 }
 
 // ─── Board helpers (connect_four_local) ──────────────────────────────────────
@@ -186,9 +222,12 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid or expired token.' })
   }
 
-  // ── Fetch admin API key ───────────────────────────────────────────────────────
+  // ── Fetch admin API key and public settings ────────────────────────────────────
   const db = getFirestore(adminApp)
-  const secretSnap = await db.doc('adminSettings/secret').get()
+  const [secretSnap, publicSnap] = await Promise.all([
+    db.doc('adminSettings/secret').get(),
+    db.doc('adminSettings/public').get(),
+  ])
   const apiKey = secretSnap.data()?.openrouterApiKey
 
   if (!apiKey) {
@@ -203,7 +242,13 @@ export default async function handler(req, res) {
   if (!isValidModelId(modelRaw)) {
     return res.status(400).json({ error: 'Invalid model ID.' })
   }
-  const model = modelRaw
+
+  // Apply free mode: append :free suffix if the admin setting is enabled and
+  // the model doesn't already have a variant suffix.
+  const useOpenRouterFree = publicSnap.data()?.useOpenRouterFree === true
+  const model = useOpenRouterFree && !modelRaw.includes(':')
+    ? `${modelRaw}:free`
+    : modelRaw
 
   const maxTokens = Math.min(
     typeof maxTokensRaw === 'number' && maxTokensRaw > 0 ? maxTokensRaw : DEFAULT_MAX_TOKENS,
@@ -267,6 +312,7 @@ export default async function handler(req, res) {
         model,
         messages,
         stream: true,
+        stream_options: { include_usage: true },
         max_tokens: maxTokens,
       }),
     })
@@ -282,6 +328,7 @@ export default async function handler(req, res) {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let usageCaptured = null
 
     while (true) {
       const { done, value } = await reader.read()
@@ -293,6 +340,17 @@ export default async function handler(req, res) {
 
       for (const line of lines) {
         if (line.trim()) {
+          // Capture usage from the final SSE chunk (contains usage when
+          // stream_options.include_usage=true), but still forward the line.
+          const trimmed = line.trim()
+          if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+            try {
+              const parsed = JSON.parse(trimmed.slice(6))
+              if (parsed.usage) usageCaptured = parsed.usage
+            } catch {
+              // not JSON — ignore
+            }
+          }
           res.write(`${line}\n`)
         }
       }
@@ -300,11 +358,24 @@ export default async function handler(req, res) {
 
     // Flush any remaining buffer content
     if (buffer.trim()) {
+      // Check final buffer for usage too
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+        try {
+          const parsed = JSON.parse(trimmed.slice(6))
+          if (parsed.usage) usageCaptured = parsed.usage
+        } catch {
+          // ignore
+        }
+      }
       res.write(`${buffer}\n`)
     }
 
     res.write('data: [DONE]\n\n')
     res.end()
+
+    // Record token usage asynchronously (does not block the response)
+    recordLlmUsage(db, model, usageCaptured).catch(() => {})
   } catch (err) {
     console.error('[chat] Streaming error:', err.message)
     try {

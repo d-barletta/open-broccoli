@@ -6,13 +6,14 @@ import {
   getAdminPublicSettings, saveAdminPublicSettings,
   getAdminSecretSettings, saveAdminSecretSettings,
   getAllUsers, updateUserAdmin, getAllMatches,
+  adminDeleteUser, getLlmStats, getLlmCredits,
 } from '../services/firestoreService'
 import PageFooter from '../components/PageFooter'
 
-const TABS = ['settings', 'users', 'matches']
+const TABS = ['settings', 'users', 'matches', 'llmStats']
 
 export default function AdminPage() {
-  const { userProfile, logout, isAdmin } = useAuth()
+  const { userProfile, logout, isAdmin, currentUser } = useAuth()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('settings')
@@ -27,15 +28,23 @@ export default function AdminPage() {
   const [availableModels, setAvailableModels] = useState('')
   const [forceSameModel, setForceSameModel] = useState(false)
   const [forcedModel, setForcedModel] = useState('')
+  const [useOpenRouterFree, setUseOpenRouterFree] = useState(false)
   const [settingsLoading, setSettingsLoading] = useState(false)
 
   // Users tab
   const [users, setUsers] = useState([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [deletingUid, setDeletingUid] = useState(null)
 
   // Matches tab
   const [matches, setMatches] = useState([])
   const [matchesLoading, setMatchesLoading] = useState(false)
+
+  // LLM Stats tab
+  const [llmStats, setLlmStats] = useState(null)
+  const [llmCredits, setLlmCredits] = useState(null)
+  const [llmStatsLoading, setLlmStatsLoading] = useState(false)
+  const [llmStatsError, setLlmStatsError] = useState(null)
 
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return }
@@ -50,6 +59,7 @@ export default function AdminPage() {
       setAvailableModels(models.join('\n'))
       setForceSameModel(pub?.forceSameModel === true)
       setForcedModel(pub?.forcedModel || models[0] || '')
+      setUseOpenRouterFree(pub?.useOpenRouterFree === true)
       setOpenrouterApiKey(sec?.openrouterApiKey || '')
     } catch (err) {
       setError(err.message)
@@ -82,12 +92,32 @@ export default function AdminPage() {
     }
   }, [])
 
+  const loadLlmStats = useCallback(async () => {
+    setLlmStatsLoading(true)
+    setLlmStatsError(null)
+    try {
+      const authToken = await currentUser.getIdToken()
+      const [stats, credits] = await Promise.allSettled([
+        getLlmStats(),
+        getLlmCredits(authToken),
+      ])
+      setLlmStats(stats.status === 'fulfilled' ? stats.value : null)
+      setLlmCredits(credits.status === 'fulfilled' ? credits.value : null)
+      if (stats.status === 'rejected') setLlmStatsError(stats.reason?.message || t('admin.llmStatsLoadingError'))
+    } catch (err) {
+      setLlmStatsError(err.message)
+    } finally {
+      setLlmStatsLoading(false)
+    }
+  }, [currentUser, t])
+
   useEffect(() => {
     if (loading) return
     if (activeTab === 'settings') loadSettings()
     else if (activeTab === 'users') loadUsers()
     else if (activeTab === 'matches') loadMatches()
-  }, [activeTab, loading, loadSettings, loadUsers, loadMatches])
+    else if (activeTab === 'llmStats') loadLlmStats()
+  }, [activeTab, loading, loadSettings, loadUsers, loadMatches, loadLlmStats])
 
   async function handleSaveSettings(e) {
     e.preventDefault()
@@ -99,11 +129,12 @@ export default function AdminPage() {
       if (forceSameModel && !effectiveForcedModel) {
         throw new Error(t('admin.forceSameModelError'))
       }
-      // Save available models to public doc (readable by all authenticated users)
+      // Save available models and flags to public doc (readable by all authenticated users)
       await saveAdminPublicSettings({
         availableModels: modelsList,
         forceSameModel,
         forcedModel: forceSameModel ? effectiveForcedModel : null,
+        useOpenRouterFree,
       })
       // Save API key to secret doc (not readable by non-admin clients; Cloud Function uses Admin SDK)
       await saveAdminSecretSettings({ openrouterApiKey })
@@ -131,6 +162,22 @@ export default function AdminPage() {
       setUsers(prev => prev.map(u => u.uid === uid ? { ...u, isAdmin: !isAdm } : u))
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function handleDeleteUser(uid, username) {
+    const confirmed = window.confirm(t('admin.deleteUserConfirm', { username }))
+    if (!confirmed) return
+    setDeletingUid(uid)
+    setError(null)
+    try {
+      const authToken = await currentUser.getIdToken()
+      await adminDeleteUser(uid, authToken)
+      setUsers(prev => prev.filter(u => u.uid !== uid))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeletingUid(null)
     }
   }
 
@@ -234,9 +281,14 @@ export default function AdminPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex rounded-lg bg-gray-800/40 p-1 mb-6 w-fit">
+        <div className="flex flex-wrap rounded-lg bg-gray-800/40 p-1 mb-6 w-fit gap-0.5">
           {TABS.map(tab => {
-            const tabLabel = { settings: t('admin.tabSettings'), users: t('admin.tabUsers'), matches: t('admin.tabMatches') }[tab]
+            const tabLabel = {
+              settings: t('admin.tabSettings'),
+              users: t('admin.tabUsers'),
+              matches: t('admin.tabMatches'),
+              llmStats: t('admin.tabLlmStats'),
+            }[tab]
             return (
               <button
                 key={tab}
@@ -299,6 +351,22 @@ export default function AdminPage() {
                   />
                   <p className="text-gray-600 text-xs mt-1">
                     {t('admin.availableModelsHint')}
+                  </p>
+                </div>
+
+                {/* Free-tier mode toggle */}
+                <div className="rounded-xl border border-emerald-700/40 bg-emerald-900/10 p-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useOpenRouterFree}
+                      onChange={e => setUseOpenRouterFree(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-emerald-500 focus:ring-emerald-500/40"
+                    />
+                    <span className="text-sm font-semibold text-gray-200">{t('admin.useOpenRouterFree')}</span>
+                  </label>
+                  <p className="text-gray-500 text-xs mt-2 ml-7">
+                    {t('admin.useOpenRouterFreeHint')}
                   </p>
                 </div>
 
@@ -400,7 +468,7 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3 px-3">
                           {u.uid !== userProfile?.uid && (
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1.5 flex-wrap">
                               <button
                                 onClick={() => toggleBan(u.uid, u.isBanned)}
                                 className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-all"
@@ -412,6 +480,13 @@ export default function AdminPage() {
                                 className="text-xs px-2 py-1 rounded bg-purple-900/40 border border-purple-700/40 text-purple-300 hover:bg-purple-900/60 transition-all"
                               >
                                 {u.isAdmin ? t('admin.removeAdmin') : t('admin.makeAdmin')}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(u.uid, u.username)}
+                                disabled={deletingUid === u.uid}
+                                className="text-xs px-2 py-1 rounded bg-red-950/40 border border-red-700/40 text-red-400 hover:bg-red-950/70 disabled:opacity-50 transition-all"
+                              >
+                                {deletingUid === u.uid ? t('admin.deletingUser') : t('admin.deleteUser')}
                               </button>
                             </div>
                           )}
@@ -480,6 +555,108 @@ export default function AdminPage() {
                 </table>
                 {matches.length === 0 && <div className="text-gray-500 text-sm py-4 text-center">{t('admin.noMatches')}</div>}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* LLM Stats Tab */}
+        {activeTab === 'llmStats' && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">{t('admin.llmStatsTitle')}</h2>
+              <button onClick={loadLlmStats}
+                className="text-xs px-3 py-1.5 bg-gray-800/60 border border-gray-700/50 text-gray-400 rounded-lg hover:text-gray-200 transition-all">
+                {t('common.refresh')}
+              </button>
+            </div>
+
+            {llmStatsLoading && (
+              <div className="text-gray-400 text-sm">{t('common.loading')}</div>
+            )}
+
+            {llmStatsError && (
+              <div className="bg-red-950/60 border border-red-500/40 rounded-lg px-4 py-3 text-red-300 text-sm">
+                {llmStatsError}
+              </div>
+            )}
+
+            {/* OpenRouter Key Info */}
+            {llmCredits && (
+              <div className="bg-gray-900/60 border border-gray-700/50 rounded-2xl p-5">
+                <h3 className="text-sm font-bold text-gray-300 mb-3">🔑 {t('admin.llmCreditsTitle')}</h3>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 text-xs block">{t('admin.llmCreditsUsage', { amount: (llmCredits.usage ?? 0).toFixed(4) })}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs block">
+                      {llmCredits.limit != null
+                        ? t('admin.llmCreditsLimit', { amount: llmCredits.limit.toFixed(2) })
+                        : t('admin.llmCreditsNoLimit')}
+                    </span>
+                  </div>
+                  {llmCredits.is_free_tier && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-700/40">
+                      {t('admin.llmCreditsFreeTier')}
+                    </span>
+                  )}
+                </div>
+                {llmCredits.label && (
+                  <p className="text-gray-600 text-xs mt-2">Key: {llmCredits.label}</p>
+                )}
+              </div>
+            )}
+
+            {/* Aggregate totals */}
+            {llmStats?.total && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: t('admin.llmStatsTotalCalls'), value: (llmStats.total.totalCalls ?? 0).toLocaleString(), color: 'text-purple-400' },
+                  { label: t('admin.llmStatsTotalTokens'), value: (llmStats.total.totalTokens ?? 0).toLocaleString(), color: 'text-blue-400' },
+                  { label: t('admin.llmStatsPromptTokens'), value: (llmStats.total.totalPromptTokens ?? 0).toLocaleString(), color: 'text-yellow-400' },
+                  { label: t('admin.llmStatsCompletionTokens'), value: (llmStats.total.totalCompletionTokens ?? 0).toLocaleString(), color: 'text-green-400' },
+                ].map(stat => (
+                  <div key={stat.label} className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4 text-center">
+                    <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
+                    <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Per-model breakdown */}
+            {llmStats?.byModel?.length > 0 && (
+              <div className="bg-gray-900/60 border border-gray-700/50 rounded-2xl p-5">
+                <h3 className="text-sm font-bold text-gray-300 mb-4">📊 {t('admin.llmStatsModelBreakdown')}</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-800/60">
+                        <th className="text-left py-2 px-3 text-xs font-bold uppercase tracking-widest text-gray-500">{t('admin.llmStatsColModel')}</th>
+                        <th className="text-right py-2 px-3 text-xs font-bold uppercase tracking-widest text-gray-500">{t('admin.llmStatsColCalls')}</th>
+                        <th className="text-right py-2 px-3 text-xs font-bold uppercase tracking-widest text-gray-500">{t('admin.llmStatsColPrompt')}</th>
+                        <th className="text-right py-2 px-3 text-xs font-bold uppercase tracking-widest text-gray-500">{t('admin.llmStatsColCompletion')}</th>
+                        <th className="text-right py-2 px-3 text-xs font-bold uppercase tracking-widest text-gray-500">{t('admin.llmStatsColTotal')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...llmStats.byModel].sort((a, b) => (b.totalTokens ?? 0) - (a.totalTokens ?? 0)).map(m => (
+                        <tr key={m.model} className="border-b border-gray-800/40 hover:bg-gray-900/40 transition-colors">
+                          <td className="py-2.5 px-3 font-mono text-gray-300 text-xs">{m.model}</td>
+                          <td className="py-2.5 px-3 text-right text-gray-400">{(m.calls ?? 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right text-yellow-400/80">{(m.promptTokens ?? 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right text-green-400/80">{(m.completionTokens ?? 0).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right text-blue-400 font-semibold">{(m.totalTokens ?? 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {!llmStatsLoading && !llmStatsError && !llmStats?.total && (
+              <div className="text-gray-500 text-sm py-8 text-center">{t('admin.llmStatsNoData')}</div>
             )}
           </div>
         )}
