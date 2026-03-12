@@ -127,7 +127,7 @@ export default function DashboardPage() {
                 {t('common.admin')}
               </button>
             )}
-            <span className="text-xs text-gray-500">👤 {userProfile?.username}</span>
+            <span className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium">👤 {userProfile?.username}</span>
             <button
               onClick={logout}
               className="text-xs px-3 py-1.5 rounded-lg border bg-gray-800/60 border-gray-700/50 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all font-medium"
