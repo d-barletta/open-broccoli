@@ -392,6 +392,9 @@ export default async function handler(req, res) {
     })
   }
 
+  // ── Process the claimed move (any unhandled error must clear isThinking) ────────
+  try {
+
   // ── Fetch admin API key (Admin SDK bypasses Firestore security rules) ─────────
   const secretSnap = await db.doc('adminSettings/secret').get()
   const apiKey = secretSnap.data()?.openrouterApiKey
@@ -629,4 +632,15 @@ Pick only from the available columns listed above.`
   if (!applied) return res.status(200).json({ ok: true, skipped: true })
 
   return res.status(200).json({ ok: true })
+
+  } catch (err) {
+    console.error(`[ai-move] Unhandled error for match ${matchId}:`, err)
+    await gsRef.update({
+      isThinking: false,
+      thinkingPlayer: null,
+      currentThinkingText: '',
+      error: `Internal error: ${err.message}`,
+    }).catch((recoveryErr) => console.error(`[ai-move] Failed to reset isThinking for match ${matchId}:`, recoveryErr))
+    return res.status(500).json({ error: 'Internal server error.' })
+  }
 }

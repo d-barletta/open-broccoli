@@ -310,6 +310,9 @@ export const processAiMove = onDocumentWritten(
       })
     }
 
+    // ── Process the claimed move (any unhandled error must clear isThinking) ──
+    try {
+
     // ── Fetch admin API key (Admin SDK bypasses security rules) ─────────────
     const secretSnap = await db.doc('adminSettings/secret').get()
     const apiKey = secretSnap.data()?.openrouterApiKey
@@ -527,5 +530,15 @@ Pick only from the available columns listed above.`
       currentThinkingText: '',
     })
     if (!applied) return
+
+    } catch (err) {
+      console.error(`[processAiMove] Unhandled error for match ${matchId}:`, err)
+      await gsRef.update({
+        isThinking: false,
+        thinkingPlayer: null,
+        currentThinkingText: '',
+        error: `Internal error: ${err.message}`,
+      }).catch((recoveryErr) => console.error(`[processAiMove] Failed to reset isThinking for match ${matchId}:`, recoveryErr))
+    }
   }
 )
